@@ -8,7 +8,14 @@ import {
 
 const TabsLayout = () => {
   return (
-    <Tabs screenOptions={{ headerShown: false }}>
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        tabBarStyle: { backgroundColor: "black" },
+        tabBarActiveTintColor: "#bfd200", // Active icon & label color
+        tabBarInactiveTintColor: "gray", // Inactive icon & label color
+      }}
+    >
       {/* home tabs */}
       <Tabs.Screen
         name="index"
@@ -24,11 +31,15 @@ const TabsLayout = () => {
       />
       {/* quiz tabs */}
       <Tabs.Screen
-        name="quiz"
+        name="exam"
         options={{
-          tabBarLabel: "Quiz",
+          tabBarLabel: "Exams",
           tabBarIcon: ({ color }) => (
-            <Ionicons name="document-text-outline" size={24} color={color} />
+            <Ionicons
+              name="document-text-outline"
+              size={24}
+              color={color}
+            />
           ),
           tabBarButton: (props) => (
             <TouchableOpacity {...props} activeOpacity={1} />
