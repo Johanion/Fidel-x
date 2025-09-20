@@ -1,21 +1,37 @@
-import {
-  StyleSheet,
-  Text,
-  View,
-  Platform,
-  Image,
-  FlatList,
-} from "react-native";
-import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { FontAwesome5 } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import {
+  FlatList,
+  Image,
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { router } from "expo-router";
 
-import featureCat from "../../constants/featureCat.js";
-import Exams from "../../constants/Exams.js";
 import HorFeature from "../(exams)/horFeature.jsx";
+import Exams from "../../constants/Exams.js";
 import specificExam from "../../constants/specificExams";
 
+import { useSetAtom } from "jotai";
+import { selectedExamsSubject } from "../../atoms.jsx";
+
 const exam = () => {
+  const selectedExam = useSetAtom(selectedExamsSubject);
+
+  const handleSelection = (item) => {
+    const selected = {
+      name: item.name,
+      icon: item.icon,
+      exams: item.exams,
+    };
+    selectedExam(selected);
+    router.push("../listOfExams");
+  };
+
   return (
     <SafeAreaProvider>
       <SafeAreaView style={{ backgroundColor: "black", flex: 1 }}>
@@ -24,15 +40,23 @@ const exam = () => {
           data={Exams}
           renderItem={({ item }) => {
             return (
-              <View style={styles.contents}>
-                <Image
-                  source={item.image}
-                  style={{ width: 120, height: 120 }}
-                />
-                <Text style={{ fontFamily: "Poppins-ExtraBold" }}>
-                  {item.name}
-                </Text>
-              </View>
+              <TouchableOpacity
+                style={{ flex: 1 }}
+                activeOpacity={0.9}
+                onPress={() => {
+                  handleSelection(item);
+                }}
+              >
+                <View style={styles.contents}>
+                  <Image
+                    source={item.image}
+                    style={{ width: 120, height: 120 }}
+                  />
+                  <Text style={{ fontFamily: "Poppins-ExtraBold" }}>
+                    {item.name}
+                  </Text>
+                </View>
+              </TouchableOpacity>
             );
           }}
           numColumns={2}
