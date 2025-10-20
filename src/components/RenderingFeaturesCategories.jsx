@@ -71,11 +71,12 @@ const TrendingItem = ({ activeItem, item }) => {
 const RenderingFeaturesCategories = ({ data }) => {
   const [activeItem, setActiveItem] = useState(data[0].$id);
 
-  const viewableItemsChanged = ({ viewableItems }) => {
-    if (viewableItems.length > 0) {
-      setActiveItem(viewableItems[0].item.$id);
-    }
-  };
+const viewableItemsChanged = ({ viewableItems = [] }) => {
+  if (viewableItems.length > 0) {
+    setActiveItem(viewableItems[0].item.$id);
+  }
+};
+
 
   return (
     <FlatList

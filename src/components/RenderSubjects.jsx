@@ -10,20 +10,32 @@ import {
   View,
 } from "react-native";
 
+import { useSetAtom } from "jotai";
+import { selectedSubject } from "../../src/atoms.jsx";
+import { router } from "expo-router";
+
 const RenderSubjects = ({ data }) => {
+  const setSubject = useSetAtom(selectedSubject);
+  console.log(data[0].topic)  
   return (
     <FlatList
       data={data}
       numColumns={2}
       renderItem={({ item }) => {
         return (
-          <View style={styles.contents}>
+          <TouchableOpacity style={styles.contents} onPress={()=>{
+            setSubject(item.topic)
+            router.push("../../(study)/topics")
+            
+                                      
+          }}>
             <Image
               source={item.image}
-              style={{  width: "65%", height: 180, resizeMode: "cover" }}
+              style={{ width: "65%", height: 180, resizeMode: "cover" }}
             />
+
             <Text style={{ fontFamily: "Poppins-ExtraBold" }}>{item.name}</Text>
-          </View>
+          </TouchableOpacity>
         );
       }}
     />

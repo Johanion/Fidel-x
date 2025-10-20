@@ -1,12 +1,6 @@
-import {
-  StyleSheet,
-  Text,
-  View,
-  FlatList,
-  Platform,
-  TouchableOpacity,
-} from "react-native";
+import { Text, View, FlatList, Platform, TouchableOpacity } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { StyleSheet, ActivityIndicator } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { BackHandler, Alert } from "react-native";
@@ -14,13 +8,22 @@ import { router, Stack } from "expo-router";
 import { useAtom } from "jotai";
 import Modal from "react-native-modal";
 import Svg, { Circle } from "react-native-svg";
+import { supabase } from "../../lib/supabase.ts";
 
 import { selectedExamsSubject } from "../../atoms";
-import question from "../../constants/question";
 import { useState, useEffect } from "react";
 
-const rightAway = () => {
+import { postServices } from "../../services/postServices";
+import { useQuery } from "@tanstack/react-query";
+import { useQueryClient } from '@tanstack/react-query';
+import { selectedExamSpecifc } from "../../atoms";
+import  LoadingScreen  from "../../services/LoadingScreen.jsx";
+import  ErrorScreen  from "../../services/ErrorScreen.jsx";
+
+const RightAway = () => {
   const [selectedExam] = useAtom(selectedExamsSubject);
+  const [selectedSpecifc] = useAtom(selectedExamSpecifc);
+  const tableName = selectedSpecifc; // e.g. "biology_2014"
 
   const [questionNumber, setQuestionNumber] = useState(null);
   const [selectedOptions, setSelectedOptions] = useState({});
@@ -30,6 +33,14 @@ const rightAway = () => {
   const [score, setScore] = useState(0);
   const [showTime, setShowTime] = useState(false);
   const [visible, setVisisble] = useState(false);
+  const [finish, setFinish] = useState(false);
+
+  // fetching the data from supabase
+  const getExamQuestions = async (tableName) => {
+    const { data, error } = await supabase.from(tableName).select("*");
+    if (error) throw error;
+    return data;
+  };
 
   // count down time
   useEffect(() => {
@@ -63,13 +74,13 @@ const rightAway = () => {
     }));
   };
 
-  const handleOptionPress = (questionIndex, option) => {
+  const handleOptionPress = (questionIndex, optionIndex) => {
     setSelectedOptions((prev) => ({
       ...prev,
-      [questionIndex]: option,
+      [questionIndex]: optionIndex,
     }));
 
-    const isAnswerCorrect = question[questionIndex].correctAnswer === option;
+    const isAnswerCorrect = quiz[questionIndex].correctAnswer === optionIndex;
     {
       isAnswerCorrect && setScore((prev) => prev + 1);
     }
@@ -113,12 +124,12 @@ const rightAway = () => {
   const strokeDashoffset = circumference * (1 - progress);
 
   // getting background color for options
-  const getOptionColor = (questionIndex, option, item) => {
+  const getOptionColor = (questionIndex, optionIndex, item) => {
     // default white
     let bgColor = "white";
 
     // If user selected this option
-    if (selectedOptions[questionIndex] === option) {
+    if (selectedOptions[questionIndex] === optionIndex) {
       if (answersCorrect[questionIndex]) {
         bgColor = "#4CAF50"; // ✅ correct selection
       } else {
@@ -128,8 +139,8 @@ const rightAway = () => {
 
     // Always show the correct one green if they missed it
     if (
-      selectedOptions[questionIndex] &&
-      option === item.correctAnswer &&
+      selectedOptions[questionIndex] !== undefined &&
+      optionIndex === item.correctAnswer &&
       selectedOptions[questionIndex] !== item.correctAnswer
     ) {
       bgColor = "#4CAF50";
@@ -138,7 +149,40 @@ const rightAway = () => {
     return bgColor;
   };
 
-  console.log(visible);
+  // getting the exam from supabase database
+  console.log("Selected table:", tableName);
+
+  const {
+    data: quiz,
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ["examQuestions", tableName],
+    queryFn: () => getExamQuestions(tableName),
+  });
+
+  // Function to retry the query
+  const handleRetry = () => {
+    queryClient.invalidateQueries(["examQuestions", tableName]);
+  };
+
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
+
+  if (error) {
+    return (
+      <ErrorScreen
+        errorMessage={error.message || "failed to load exam question"}
+        onRetry={handleRetry}
+      />
+    );
+  }
+
+  if (!quiz) {
+    return <Text>No quiz data found.</Text>;
+  }
+
   return (
     <SafeAreaProvider>
       <SafeAreaView style={{ flex: 1, backgroundColor: "white" }}>
@@ -194,6 +238,7 @@ const rightAway = () => {
                   style={[styles.optionBtn, { backgroundColor: "gray" }]}
                   onPress={() => {
                     setVisisble(false);
+                    setFinish(true);
                   }}
                 >
                   <Text style={styles.optionText}>Cancel</Text>
@@ -274,6 +319,7 @@ const rightAway = () => {
                         </TouchableOpacity>
                       ) : (
                         <TouchableOpacity
+                          style={{ marginRight: 12 }}
                           activeOpacity={1}
                           onPress={() => {
                             setShowTime((prev) => !prev);
@@ -308,7 +354,7 @@ const rightAway = () => {
 
             {/* main exams list */}
             <FlatList
-              data={question}
+              data={quiz}
               renderItem={({ item, index: questionIndex }) => {
                 return (
                   <View>
@@ -326,7 +372,7 @@ const rightAway = () => {
                             {
                               backgroundColor: getOptionColor(
                                 questionIndex,
-                                option,
+                                optionIndex,
                                 item
                               ),
                             },
@@ -335,10 +381,13 @@ const rightAway = () => {
                           <TouchableOpacity
                             style={{ flex: 1 }}
                             onPress={() => {
-                              handleOptionPress(questionIndex, option);
+                              handleOptionPress(questionIndex, optionIndex);
                             }}
                             activeOpacity={0.7}
-                            disabled={!!selectedOptions[questionIndex]}
+                            disabled={
+                              selectedOptions[questionIndex] !== undefined ||
+                              finish
+                            }
                           >
                             <Text style={{ fontFamily: "Poppins-Medium" }}>
                               {option}
@@ -349,7 +398,7 @@ const rightAway = () => {
 
                       {/* explanation toggle */}
 
-                      {selectedOptions[questionIndex] && (
+                      {selectedOptions[questionIndex] !== undefined && (
                         <>
                           <View
                             style={{
@@ -397,7 +446,7 @@ const rightAway = () => {
   );
 };
 
-export default rightAway;
+export default RightAway;
 
 const styles = StyleSheet.create({
   quizBox: {

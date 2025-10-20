@@ -13,7 +13,6 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons, FontAwesome5 } from "@expo/vector-icons";
-import { useFonts } from "expo-font";
 import { router } from "expo-router";
 
 import subjects from "../../constants/subjects.js";
@@ -27,7 +26,7 @@ export default function Index() {
     {
       image: featureCat.ExamIcon,
       text: "400+ EUEE and Model exams with answers",
-      colors: ["#FFFFFF", "#FFF9F6", "#FFE9E2", "#FFD6CC", "#FFB8A8"],
+      colors: ["#FFFFFF", "#FFF9F6", "#53342aff", "#FFD6CC", "#FFB8A8"],
 
       start: [0.19, 0.11],
       end: [0.81, 0.89],
@@ -37,7 +36,7 @@ export default function Index() {
       text: "Your daily study checklist",
       colors: ["#FFFFFF", "#F8FCFB", "#E2F2F0", "#BDE3DE", "#95D4CE"],
       start: [0.19, 0.11],
-      end: [0.81, 0, 89],
+      end: [0.81, 0.89],
     },
     {
       image: featureCat.Study,
@@ -51,7 +50,7 @@ export default function Index() {
       text: "join our community!",
       colors: ["#FFFFFF", "#F9FAFC", "#E3E8EF", "#C9D3E0", "#A0B2C8"],
       start: [0.19, 0.11],
-      end: [0.81, 0, 89],
+      end: [0.81, 0.89],
     },
   ];
 
@@ -62,7 +61,7 @@ export default function Index() {
         <View>
           <Text
             style={{
-              fontWeight: 600,
+              fontWeight: "600",
               fontSize: 24,
               fontFamily: "Poppins-Bold",
               color: "white",
@@ -180,7 +179,7 @@ export default function Index() {
               Natural Science
             </Text>
           </View>
-          <RenderSubjects data={subjects.NaturalScience} />;
+          <RenderSubjects data={subjects.NaturalScience} />
 
            {/* social science bar */}
           <View
@@ -210,7 +209,38 @@ export default function Index() {
               Social Science
             </Text>
           </View>
-          <RenderSubjects data={subjects.SocialScience} />;
+          <RenderSubjects data={subjects.SocialScience} />
+
+          {/* Aptitude and english */}
+          <View
+            style={{
+              flexDirection: "row",
+              padding: 12,
+              paddingTop: 23,
+              alignItems: "center",
+            }}
+          >
+            <View
+              style={{
+                backgroundColor: "#FFE100",
+                width: 6,
+                height: 23,
+                marginRight: 10,
+                borderRadius: 24,
+              }}
+            ></View>
+            <Text
+              style={{
+                fontFamily: "Poppins-Black",
+                fontSize: 21,
+                color: "white",
+              }}
+            >
+              English $ SAT
+            </Text>
+          </View>
+          <RenderSubjects data={subjects.Language} />
+
         </ScrollView>
       </SafeAreaView>
     </SafeAreaProvider>

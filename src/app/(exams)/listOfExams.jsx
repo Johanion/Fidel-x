@@ -7,12 +7,14 @@ import {
   Platform,
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
-import { useAtom } from "jotai";
+import { useSetAtom, useAtom } from "jotai";
 import { useState } from "react";
 import Modal from "react-native-modal";
+import { LinearGradient } from "expo-linear-gradient";
 
 import Icon from "react-native-vector-icons/MaterialIcons";
 import { selectedExamsSubject } from "../../atoms";
+import { selectedExamSpecifc } from "../../atoms";
 import { router } from "expo-router";
 
 const [timeLeft, setTimeLeft] = useState(10); // 60 seconds
@@ -20,15 +22,24 @@ const [timeLeft, setTimeLeft] = useState(10); // 60 seconds
 
 const ListOfExams = () => {
   const [selectedExam] = useAtom(selectedExamsSubject);
+  const [selectedSpecificExam, setSelectedSpecificExam] = useAtom(selectedExamSpecifc);
+  const[selectedExamSubject, setSelectedExamSubject]= useState(null)
   const [visible, setVisisble] = useState(false);
+  // subject that needs LaTeX to render
+  const LatexExams=["Physics", "Chemistry", "Aptitude"]
 
   const renderItem = ({ item }) => {
+    console.log(" selected Exam ", selectedExam.name)
+ 
     return (
       <TouchableOpacity
         style={[styles.card]}
         activeOpacity={0.8}
         onPress={() => {
           setVisisble(true);
+          setSelectedSpecificExam(item.questions)
+          setSelectedExamSubject(item)
+
         }}
       >
         <View style={styles.cardContent}>
@@ -56,15 +67,15 @@ const ListOfExams = () => {
       </TouchableOpacity>
     );
   };
-
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.container}>
-        <Text style={styles.header}>Exams List</Text>
+        <LinearGradient colors={["#4c669f", "#3b5998", "#192f6a"]}>
         <FlatList
           data={selectedExam.exams}
           renderItem={renderItem}
           contentContainerStyle={styles.list}
+          ListHeaderComponent={<Text style={styles.header}>{}</Text>}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Icon name="info-outline" size={40} color="#666" />
@@ -81,7 +92,8 @@ const ListOfExams = () => {
               style={[styles.optionBtn, { backgroundColor: "#4CAF50" }]}
               onPress={() => {
                 setVisisble(false);
-                router.push("rightAway");
+                router.push(LatexExams.includes(selectedExam.name)? "rightAwayLatex": "rightAway" );
+
               }}
             >
               <Text style={styles.optionText}>Right Away</Text>
@@ -91,7 +103,7 @@ const ListOfExams = () => {
               style={[styles.optionBtn, { backgroundColor: "#2196F3" }]}
               onPress={() => {
                 setVisisble(false);
-                router.push("onceFinished");
+                router.push(LatexExams.includes(selectedExam.name? "onceFinishedLatex": "onceFinished"));
               }}
             >
               <Text style={styles.optionText}>Once Finished</Text>
@@ -105,6 +117,7 @@ const ListOfExams = () => {
             </TouchableOpacity>
           </View>
         </Modal>
+        </LinearGradient>
       </SafeAreaView>
     </SafeAreaProvider>
   );
@@ -113,7 +126,6 @@ const ListOfExams = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8fafc",
   },
   header: {
     fontSize: 28,

@@ -1,8 +1,9 @@
 import { Stack, SplashScreen } from "expo-router";
 import { useFonts } from "expo-font";
 import { useEffect } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-SplashScreen.preventAutoHideAsync();
+const queryClient = new QueryClient();
 
 export default function RootLayout() {
   const [fontsLoaded, error] = useFonts({
@@ -18,17 +19,28 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
-    if (error) throw error;
+    SplashScreen.preventAutoHideAsync();
+  }, []);
+
+  useEffect(() => {
+    if (error) {
+      console.error("Font loading error:", error);
+      SplashScreen.hideAsync();
+    }
+
     if (fontsLoaded) {
       SplashScreen.hideAsync();
     }
   }, [fontsLoaded, error]);
   if (!fontsLoaded && !error) return null;
   return (
-    <Stack>
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="(payment)" options={{ headerShown: false }} />
-      <Stack.Screen name="(exams)" options={{ headerShown: false }} />
-    </Stack>
+    <QueryClientProvider client={queryClient}>
+      <Stack>
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="(payment)" options={{ headerShown: false }} />
+        <Stack.Screen name="(exams)" options={{ headerShown: false }} />
+        <Stack.Screen name="(study)" options={{ headerShown: false }} />
+      </Stack>
+    </QueryClientProvider>
   );
 }

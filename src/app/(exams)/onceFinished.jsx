@@ -19,7 +19,7 @@ import question from "../../constants/question";
 import { useState, useEffect } from "react";
 import { Stack, router } from "expo-router";
 
-const onceFinished = () => {
+const OnceFinished = () => {
   const [selectedExam] = useAtom(selectedExamsSubject);
 
   const [questionNumber, setQuestionNumber] = useState(null);
@@ -48,13 +48,13 @@ const onceFinished = () => {
     }));
   };
 
-  const handleOptionPress = (questionIndex, option) => {
+  const handleOptionPress = (questionIndex, optionIndex) => {
     setSelectedOptions((prev) => ({
       ...prev,
-      [questionIndex]: option,
+      [questionIndex]: optionIndex,
     }));
 
-    const isAnswerCorrect = question[questionIndex].correctAnswer === option;
+    const isAnswerCorrect = question[questionIndex].correctAnswer === optionIndex;
     {
       isAnswerCorrect && setScore((prev) => prev + 1);
     }
@@ -122,12 +122,12 @@ const onceFinished = () => {
   const strokeDashoffset = circumference * (1 - progress);
 
   // getting background color for options
-  const getOptionColor = (questionIndex, option, item) => {
+  const getOptionColor = (questionIndex, optionIndex, item) => {
     // default white
     let bgColor = "white";
 
     // If user selected this option
-    if (selectedOptions[questionIndex] === option) {
+    if (selectedOptions[questionIndex] === optionIndex) {
       if (answersCorrect[questionIndex]) {
         bgColor = "#4CAF50"; // ✅ correct selection
       } else {
@@ -137,8 +137,8 @@ const onceFinished = () => {
 
     // Always show the correct one green if they missed it
     if (
-      selectedOptions[questionIndex] &&
-      option === item.correctAnswer &&
+      selectedOptions[questionIndex] !==undefined &&
+      optionIndex === item.correctAnswer &&
       selectedOptions[questionIndex] !== item.correctAnswer
     ) {
       bgColor = "#4CAF50";
@@ -295,6 +295,7 @@ const onceFinished = () => {
                         </TouchableOpacity>
                       ) : (
                         <TouchableOpacity
+                          style={{marginRight: 12}}
                           activeOpacity={1}
                           onPress={() => {
                             setShowTime((prev) => !prev);
@@ -344,15 +345,16 @@ const onceFinished = () => {
                             styles.option,
                             {
                               backgroundColor: result
-                                ? getOptionColor(questionIndex, option, item)
+                                ? getOptionColor(questionIndex, optionIndex, item)
                                 : "white",
                             },
                           ]}
                         >
                           <TouchableOpacity
+                            key ={optionIndex}
                             style={{ flex: 1 }}
                             onPress={() => {
-                              handleOptionPress(questionIndex, option);
+                              handleOptionPress(questionIndex, optionIndex);
                             }}
                             activeOpacity={0.7}
                             disabled={result}
@@ -368,7 +370,7 @@ const onceFinished = () => {
                               </Text>
                               <Ionicons
                                 name={
-                                  selectedOptions[questionIndex] === option
+                                  selectedOptions[questionIndex] === optionIndex
                                     ? "radio-button-on"
                                     : "radio-button-off"
                                 }
@@ -432,7 +434,7 @@ const onceFinished = () => {
   );
 };
 
-export default onceFinished;
+export default OnceFinished;
 
 const styles = StyleSheet.create({
   quizBox: {

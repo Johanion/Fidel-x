@@ -47,7 +47,10 @@ const TrendingItem = ({ activeItem, item }) => {
 };
 
 const HorFeature = ( {data} ) => {
-  const [activeItem, setActiveItem] = useState(data[0].$id);
+  const [activeItem, setActiveItem] = useState(
+  data && data.length > 0 ? data[0].$id : null
+);
+
 
   const viewableItemsChanged = ({ viewableItems }) => {
     if (viewableItems.length > 0) {
