@@ -1,241 +1,288 @@
+// screens/listOfExams.jsx
+import React, { useState } from "react";
 import {
+  FlatList,
   StyleSheet,
   Text,
   View,
-  FlatList,
-  TouchableOpacity,
   Platform,
+  TouchableOpacity,
+  StatusBar,
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
-import { useSetAtom, useAtom } from "jotai";
-import { useState } from "react";
+import { useAtom } from "jotai";
 import Modal from "react-native-modal";
 import { LinearGradient } from "expo-linear-gradient";
-
-import Icon from "react-native-vector-icons/MaterialIcons";
-import { selectedExamsSubject } from "../../atoms";
-import { selectedExamSpecifc } from "../../atoms";
+import { FontAwesome5, MaterialIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
 
-const [timeLeft, setTimeLeft] = useState(10); // 60 seconds
-
+import { selectedExamsSubject, selectedExamSpecifc } from "../../atoms";
 
 const ListOfExams = () => {
   const [selectedExam] = useAtom(selectedExamsSubject);
-  const [selectedSpecificExam, setSelectedSpecificExam] = useAtom(selectedExamSpecifc);
-  const[selectedExamSubject, setSelectedExamSubject]= useState(null)
-  const [visible, setVisisble] = useState(false);
-  // subject that needs LaTeX to render
-  const LatexExams=["Physics", "Chemistry", "Aptitude"]
+  const [,setSelectedSpecificExam] = useAtom(selectedExamSpecifc);
+  const [selectedExamSubject, setSelectedExamSubject] = useState(null);
+  const [visible, setVisible] = useState(false);
 
-  const renderItem = ({ item }) => {
-    console.log(" selected Exam ", selectedExam.name)
- 
-    return (
-      <TouchableOpacity
-        style={[styles.card]}
-        activeOpacity={0.8}
-        onPress={() => {
-          setVisisble(true);
-          setSelectedSpecificExam(item.questions)
-          setSelectedExamSubject(item)
-
-        }}
-      >
-        <View style={styles.cardContent}>
-          <View style={styles.iconContainer}>
-            <Icon name="local-florist" size={24} color="green" />
-          </View>
-          <View style={styles.textContainer}>
-            <Text style={styles.title}>
-              {item.type} {item.year}
+  // Subjects requiring LaTeX rendering
+  const LatexExams = ["Physics", "Chemistry", "Aptitude"];
+  
+  // rendering exams
+  const renderItem = ({ item }) => (
+    <TouchableOpacity
+      style={styles.card}
+      activeOpacity={0.88}
+      onPress={() => {
+        setVisible(true);
+        setSelectedSpecificExam(item.questions); // selected exam subject
+        setSelectedExamSubject(item);
+      }}
+    >
+      <View style={styles.cardContent}>
+        <View style={styles.iconContainer}>
+          <MaterialIcons name="auto-stories" size={26} color="#239BA7" />
+        </View>
+        <View style={styles.textContainer}>
+          <Text style={styles.title}>
+            {item.type} {item.year}
+          </Text>
+          <View style={styles.infoRow}>
+            <MaterialIcons name="quiz" size={18} color="#666" />
+            <Text style={styles.infoText}>
+              {item.amount || "N/A"} Questions
             </Text>
-            <View style={styles.infoRow}>
-              <Icon name="question-answer" size={18} color="#666" />
-              <Text style={styles.infoText}>
-                {item.amount || "N/A"} Questions
-              </Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Icon name="timer" size={18} color="#666" />
-              <Text style={styles.infoText}>
-                {item.time ? `${item.time} mins` : "N/A"}
-              </Text>
-            </View>
+          </View>
+          <View style={styles.infoRow}>
+            <MaterialIcons name="timer" size={18} color="#666" />
+            <Text style={styles.infoText}>
+              {item.time ? `${item.time} mins` : "N/A"}
+            </Text>
           </View>
         </View>
-      </TouchableOpacity>
-    );
-  };
+      </View>
+    </TouchableOpacity>
+  );
+  // In ListOfExams
+
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.container}>
-        <LinearGradient colors={["#4c669f", "#3b5998", "#192f6a"]}>
-        <FlatList
-          data={selectedExam.exams}
-          renderItem={renderItem}
-          contentContainerStyle={styles.list}
-          ListHeaderComponent={<Text style={styles.header}>{}</Text>}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Icon name="info-outline" size={40} color="#666" />
-              <Text style={styles.emptyText}>No exams available</Text>
+        <StatusBar backgroundColor="#E0F2ED" barStyle="dark-content" />
+
+        <LinearGradient
+          colors={["#E0F2ED", "#FFFFFF"]}
+          start={{ x: 1, y: 0.5 }}
+          end={{ x: 0, y: 0.5 }}
+          style={styles.gradient}
+        >
+          <FlatList
+            data={selectedExam.exams}
+            renderItem={renderItem}
+            keyExtractor={(item) =>
+              item.id?.toString() || Math.random().toString()
+            }
+            contentContainerStyle={styles.list}
+            ListHeaderComponent={
+              <View style={styles.header}>
+                <Text style={styles.headerText}>{selectedExam.name} Exams</Text>
+              </View>
+            }
+            ListEmptyComponent={
+              <View style={styles.emptyContainer}>
+                <MaterialIcons name="info" size={44} color="#999" />
+                <Text style={styles.emptyText}>No exams available</Text>
+              </View>
+            }
+          />
+
+          {/* Exam Mode Modal */}
+          <Modal
+            isVisible={visible}
+            onBackdropPress={() => setVisible(false)}
+            animationIn="fadeInUp"
+            animationOut="fadeOutDown"
+            backdropOpacity={0.5}
+          >
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Choose Test Mode</Text>
+
+              <TouchableOpacity
+                style={[styles.optionBtn, styles.rightAwayBtn]}
+                onPress={() => {
+                  setVisible(false);
+                  const route = LatexExams.includes(selectedExam.name)
+                    ? "rightAwayLatex"
+                    : "rightAway";
+                  router.push(route);
+                }}
+              >
+                <MaterialIcons name="play-arrow" size={22} color="#FFF" />
+                <Text style={styles.optionText}>Start Right Away</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.optionBtn, styles.onceFinishedBtn]}
+                onPress={() => {
+                  setVisible(false);
+                  const route = LatexExams.includes(selectedExam.name)
+                    ? "onceFinishedLatex"
+                    : "onceFinished";
+                  router.push(route);
+                }}
+              >
+                <MaterialIcons name="schedule" size={22} color="#FFF" />
+                <Text style={styles.optionText}>Once Finished</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.cancelBtn}
+                onPress={() => setVisible(false)}
+              >
+                <Text style={styles.cancelText}>Cancel</Text>
+              </TouchableOpacity>
             </View>
-          }
-        />
-        {/* exam options modal */}
-        <Modal isVisible={visible} onBackdropPress={() => setVisisble(false)}>
-          <View style={styles.modalContent}>
-            <Text style={styles.title}>Choose how to take the test</Text>
-
-            <TouchableOpacity
-              style={[styles.optionBtn, { backgroundColor: "#4CAF50" }]}
-              onPress={() => {
-                setVisisble(false);
-                router.push(LatexExams.includes(selectedExam.name)? "rightAwayLatex": "rightAway" );
-
-              }}
-            >
-              <Text style={styles.optionText}>Right Away</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.optionBtn, { backgroundColor: "#2196F3" }]}
-              onPress={() => {
-                setVisisble(false);
-                router.push(LatexExams.includes(selectedExam.name? "onceFinishedLatex": "onceFinished"));
-              }}
-            >
-              <Text style={styles.optionText}>Once Finished</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => setVisisble(false)}
-              style={styles.cancelBtn}
-            >
-              <Text>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </Modal>
+          </Modal>
         </LinearGradient>
       </SafeAreaView>
     </SafeAreaProvider>
   );
 };
 
+export default ListOfExams;
+
+// ─────── STYLES – INDEX.TSX AESTHETIC CLONE ───────
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1, backgroundColor: "#fff" },
+  gradient: { flex: 1 },
+  list: { paddingHorizontal: 16, paddingBottom: 40 },
+
+  // Header
   header: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#1a1a1a",
-    textAlign: "center",
     marginVertical: 20,
-    letterSpacing: 0.5,
+    paddingHorizontal: 4,
   },
-  list: {
-    paddingHorizontal: 16,
-    paddingBottom: 20,
+  headerText: {
+    fontFamily: "Poppins-Black",
+    fontSize: 24,
+    color: "#014421",
+    textAlign: "center",
   },
+
+  // Card
   card: {
-    backgroundColor: "#ffffff",
-    borderRadius: 12,
-    marginVertical: 8,
-    padding: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-  },
-  cardSelected: {
-    borderColor: "#007bff",
-    backgroundColor: "#f0f7ff",
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    marginVertical: 10,
+    padding: 18,
+    borderWidth: 1.4,
+    borderColor: "rgba(35,155,167,0.16)",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.1,
+        shadowRadius: 14,
+      },
+      android: { elevation: 10 },
+    }),
   },
   cardContent: {
     flexDirection: "row",
     alignItems: "center",
   },
   iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "#e6f0ff",
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: "rgba(35,155,167,0.12)",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 12,
+    marginRight: 16,
+    borderWidth: 1.8,
+    borderColor: "rgba(35,155,167,0.22)",
   },
-  textContainer: {
-    flex: 1,
-  },
+  textContainer: { flex: 1 },
   title: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#1a1a1a",
+    fontFamily: "Poppins-SemiBold",
+    fontSize: 17,
+    color: "#014421",
     marginBottom: 6,
   },
   infoRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginVertical: 2,
+    marginVertical: 3,
   },
   infoText: {
+    fontFamily: "Poppins-Medium",
     fontSize: 14,
-    color: "#4b5563",
+    color: "#555",
     marginLeft: 8,
-    fontWeight: "500",
   },
+
+  // Empty State
   emptyContainer: {
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 40,
+    paddingVertical: 60,
   },
   emptyText: {
+    fontFamily: "Poppins-Medium",
     fontSize: 16,
-    color: "#4b5563",
-    textAlign: "center",
-    marginTop: 10,
-    fontWeight: "500",
+    color: "#777",
+    marginTop: 12,
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.6)",
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 20,
-  },
+
+  // Modal
   modalContent: {
-    backgroundColor: "white",
-    padding: 25,
-    borderRadius: 16,
+    backgroundColor: "#fff",
+    padding: 28,
+    borderRadius: 24,
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 5,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.25,
+        shadowRadius: 20,
+      },
+      android: { elevation: 16 },
+    }),
+  },
+  modalTitle: {
+    fontFamily: "Poppins-Bold",
+    fontSize: 18,
+    color: "#014421",
+    marginBottom: 20,
   },
   optionBtn: {
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 10,
-    marginVertical: 8,
-    width: "100%",
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
+    width: "100%",
+    paddingVertical: 14,
+    borderRadius: 16,
+    marginVertical: 8,
+  },
+  rightAwayBtn: {
+    backgroundColor: "#4CAF50",
+  },
+  onceFinishedBtn: {
+    backgroundColor: "#239BA7",
   },
   optionText: {
-    color: "white",
+    color: "#fff",
+    fontFamily: "Poppins-SemiBold",
     fontSize: 16,
-    fontWeight: "600",
+    marginLeft: 8,
   },
   cancelBtn: {
-    marginTop: 15,
+    marginTop: 12,
     padding: 10,
   },
+  cancelText: {
+    fontFamily: "Poppins-Medium",
+    fontSize: 15,
+    color: "#666",
+  },
 });
-
-export default ListOfExams;

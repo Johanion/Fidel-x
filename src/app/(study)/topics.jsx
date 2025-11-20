@@ -1,134 +1,257 @@
+// src/screens/DashboardScreen.tsx
 import React from "react";
 import {
-  StyleSheet,
-  Text,
   View,
-  FlatList,
-  TouchableOpacity,
-  Platform,
+  Text,
+  ScrollView,
+  RefreshControl,
+  ActivityIndicator,
+  StyleSheet,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { LinearGradient } from "expo-linear-gradient";
-import Icon from "react-native-vector-icons/MaterialIcons";
+import { useQuery } from "@tanstack/react-query";
+import { getAdminClient } from "../../lib/supabaseAdmin";
+import { Users, UserCheck, UserX } from "lucide-react-native";
 
-import { useAtom } from "jotai";
-import { useSetAtom } from "jotai";
-import { selectedSubject, selectedSubjectSpecificContent } from "../../atoms";
-import { router } from "expo-router";
+const supabaseAdmin = getAdminClient();
 
-const Topics = () => {
-  const [selectedSubjectValue] = useAtom(selectedSubject);
-  const setSelectedSubjectSpecificContent = useSetAtom(
-    selectedSubjectSpecificContent
-  );
+export default function DashboardScreen() {
+  const { data, isLoading, isError, error, refetch } = useQuery({
+    queryKey: ["user-status"],
+    queryFn: async () => {
+      const [totalRes, activeRes] = await Promise.all([
+        supabaseAdmin
+          .from("profile")
+          .select("*", { count: "exact", head: true }),
+        supabaseAdmin
+          .from("profile")
+          .select("*", { count: "exact", head: true })
+          .eq("status", true),
+      ]);
 
-  const renderItem = ({ item }) => (
-    <TouchableOpacity
-      style={styles.card}
-      onPress={() => {
-        setSelectedSubjectSpecificContent(item);
-        router.push("../../(study)/allStudyTools");
-      }}
-    >
-      <View style={styles.cardContent}>
-        <View style={styles.iconContainer}>
-          <Icon name="book" size={24} color="#007bff" />
-        </View>
-        <View style={styles.textContainer}>
-          <Text style={styles.title}>{item.title || item.name}</Text>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
+      const total = totalRes.count ?? 0;
+      const active = activeRes.count ?? 0;
+      const inactive = total - active;
+
+      return { total, active, inactive };
+    },
+    refetchInterval: 60_000, // Every 60 seconds (not 60 million!)
+    staleTime: 30_000,
+  });
+
+  const stats = [
+    {
+      label: "Total Users",
+      value: data?.total ?? 0,
+      icon: Users,
+      color: "#2563eb", // blue-600
+      bgLight: "rgba(37, 99, 235, 0.2)",
+      border: "#3b82f6",
+    },
+    {
+      label: "Active Users",
+      value: data?.active ?? 0,
+      icon: UserCheck,
+      color: "#059669", // emerald-600
+      bgLight: "rgba(5, 150, 105, 0.2)",
+      border: "#10b981",
+    },
+    {
+      label: "Inactive Users",
+      value: data?.inactive ?? 0,
+      icon: UserX,
+      color: "#dc2626", // red-600
+      bgLight: "rgba(220, 38, 38, 0.2)",
+      border: "#ef4444",
+    },
+  ];
 
   return (
-    <SafeAreaView style={styles.container}>
-      <LinearGradient
-        colors={["#444852ff", "#3b5998", "#192f6a"]}
-        style={{ flex: 1 }}
-      >
-        <FlatList
-          data={selectedSubjectValue}
-          renderItem={renderItem}
-          keyExtractor={(item, index) =>
-            (item.id || item.name || index).toString()
-          }
-          contentContainerStyle={styles.list}
-          ListHeaderComponent={<Text style={styles.header}>Topics</Text>}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Icon name="info-outline" size={40} color="#666" />
-              <Text style={styles.emptyText}>No topics available</Text>
-            </View>
-          }
+    <ScrollView
+      style={styles.container}
+      refreshControl={
+        <RefreshControl
+          refreshing={isLoading}
+          onRefresh={refetch}
+          tintColor="#10b981"
+          colors={["#10b981"]}
         />
-      </LinearGradient>
-    </SafeAreaView>
-  );
-};
+      }
+    >
+      {/* Header */}
+      <View style={styles.headerGradient}>
+        <Text style={styles.title}>User Overview</Text>
+        <Text style={styles.subtitle}>Real-time statistics</Text>
+      </View>
 
-export default Topics;
+      <View style={styles.content}>
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#10b981" />
+            <Text style={styles.loadingText}>Loading stats...</Text>
+          </View>
+        ) : isError ? (
+          <View style={styles.loadingContainer}>
+            <Text style={styles.loadingText}>Error loading data</Text>
+            <Text style={{ color: "#ef4444", marginTop: 8 }}>
+              {(error as any)?.message || "Unknown error"}
+            </Text>
+          </View>
+        ) : (
+          <View>
+            {stats.map((stat, index) => {
+              const Icon = stat.icon;
+              const percentage =
+                stat.label === "Total Users" ? 100 : (stat.value / (data?.total || 1)) * 100;
+
+              return (
+                <View key={index} style={styles.cardContainer}>
+                  <View
+                    style={[
+                      styles.card,
+                      { backgroundColor: stat.bgLight, borderColor: stat.border },
+                    ]}
+                  >
+                    <View style={styles.cardRow}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.cardLabel}>{stat.label}</Text>
+                        <Text style={styles.cardValue}>
+                          {stat.value.toLocaleString()}
+                        </Text>
+                      </View>
+
+                      <View style={[styles.iconBox, { backgroundColor: stat.color }]}>
+                        <Icon size={48} color="white" strokeWidth={2.5} />
+                      </View>
+                    </View>
+
+                    {/* Progress Bar - Only for Active/Inactive */}
+                    {stat.label !== "Total Users" && data && data.total > 0 && (
+                      <View style={{ marginTop: 24 }}>
+                        <View style={styles.progressBarBg}>
+                          <View
+                            style={[
+                              styles.progressBarFill,
+                              { backgroundColor: stat.color, width: `${percentage}%` },
+                            ]}
+                          />
+                        </View>
+                        <Text style={styles.progressText}>
+                          {percentage.toFixed(1)}% of total users
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        )}
+      </View>
+
+      {/* Footer */}
+      <View style={styles.footer}>
+        <Text style={styles.footerText}>
+          Pull down to refresh • Updated live
+        </Text>
+      </View>
+    </ScrollView>
+  );
+}
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#030712",
   },
-  header: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#fff",
-    textAlign: "center",
-    marginVertical: 20,
-    letterSpacing: 0.5,
-  },
-  list: {
-    paddingHorizontal: 16,
-    paddingBottom: 20,
-  },
-  card: {
-    backgroundColor: "#ffffff",
-    borderRadius: 12,
-    marginVertical: 8,
-    padding: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-  },
-  cardContent: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "#e6f0ff",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
-  },
-  textContainer: {
-    flex: 1,
+  headerGradient: {
+    backgroundColor: "#064e3b",
+    paddingTop: 64,
+    paddingBottom: 48,
+    paddingHorizontal: 32,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
   },
   title: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#1a1a1a",
+    color: "#FFFFFF",
+    fontSize: 36,
+    fontWeight: "bold",
+    textAlign: "center",
   },
-  emptyContainer: {
+  subtitle: {
+    color: "#6ee7b7",
+    fontSize: 18,
+    textAlign: "center",
+    marginTop: 8,
+  },
+  content: {
+    paddingHorizontal: 24,
+    marginTop: -32,
+  },
+  loadingContainer: {
     alignItems: "center",
-    justifyContent: "center",
+    paddingVertical: 80,
+  },
+  loadingText: {
+    color: "#9ca3af",
+    marginTop: 16,
+    fontSize: 16,
+  },
+  cardContainer: {
+    marginBottom: 24,
+  },
+  card: {
+    borderWidth: 2,
+    borderRadius: 24,
+    padding: 32,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  cardRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  cardLabel: {
+    color: "#d1d5db",
+    fontSize: 18,
+    fontWeight: "500",
+  },
+  cardValue: {
+    color: "#FFFFFF",
+    fontSize: 56,
+    fontWeight: "bold",
+    marginTop: 8,
+    letterSpacing: -1,
+  },
+  iconBox: {
+    padding: 24,
+    borderRadius: 16,
+  },
+  progressBarBg: {
+    backgroundColor: "#1f2937",
+    height: 12,
+    borderRadius: 6,
+    overflow: "hidden",
+  },
+  progressBarFill: {
+    height: "100%",
+    borderRadius: 6,
+  },
+  progressText: {
+    color: "#6b7280",
+    fontSize: 12,
+    marginTop: 8,
+    textAlign: "right",
+  },
+  footer: {
+    alignItems: "center",
     paddingVertical: 40,
   },
-  emptyText: {
-    fontSize: 16,
+  footerText: {
     color: "#4b5563",
-    textAlign: "center",
-    marginTop: 10,
-    fontWeight: "500",
+    fontSize: 12,
   },
 });

@@ -16,7 +16,8 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.anonymous.Fidelx"
     },
     "web": {
       "bundler": "metro",
@@ -34,7 +35,15 @@
           "backgroundColor": "#ffffff"
         }
       ],
-      "expo-asset"
+      [
+        "expo-asset",
+        {
+          "assets": [
+            "./assets/katex/katex.min.js",
+            "./assets/katex/katex.min.css"
+          ]
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

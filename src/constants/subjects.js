@@ -1,22 +1,21 @@
-import coverPage from "./coverPage.js";
 import units from "./units.js";
 import topics from "../constants/topics.js"
 
 const SocialScience = [
-  { name: "Economics", image: coverPage.Economics, topic: topics.History },
-  { name: "History", image: coverPage.History, topic: topics.History },
-  { name: "Geography", image: coverPage.English, topic: topics.History },
+  { name: "Economics",topic: topics.Economics },
+  { name: "History",  topic: topics.History },
+  { name: "Geography", topic: topics.Geography },
 ];
 
 const NaturalScience = [
-  { name: "Biology", image: coverPage.Biology, topic: topics.History },
-  { name: "Chemistry", image: coverPage.Chemistry, topic: topics.History },
-  { name: "Physics", image: coverPage.Physics, topic: topics.History },
+  { name: "Biology",  topic: topics.Biology },
+  { name: "Chemistry",  topic: topics.Chemistry },
+  { name: "Physics",  topic: topics.Physics },
 ];
 
 const Language = [
-  { name: "English", image: coverPage.English, topic: topics.History },
-  { name: "SAT", image: coverPage.Aptitude, topic: topics.History },
+  { name: "English",  topic: topics.English },
+  { name: "SAT", topic: topics.SAT },
 ];
 
 export default { SocialScience, NaturalScience, Language };

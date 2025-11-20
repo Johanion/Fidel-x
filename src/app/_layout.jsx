@@ -1,6 +1,7 @@
 import { Stack, SplashScreen } from "expo-router";
 import { useFonts } from "expo-font";
 import { useEffect } from "react";
+import AuthProviders from "../providers/AuthProvider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 const queryClient = new QueryClient();
@@ -17,6 +18,7 @@ export default function RootLayout() {
     "Poppins-SemiBold": require("../../assets/fonts/Poppins-SemiBold.ttf"),
     "Poppins-Thin": require("../../assets/fonts/Poppins-Thin.ttf"),
   });
+  const queryClient = new QueryClient();
 
   useEffect(() => {
     SplashScreen.preventAutoHideAsync();
@@ -33,14 +35,18 @@ export default function RootLayout() {
     }
   }, [fontsLoaded, error]);
   if (!fontsLoaded && !error) return null;
+
   return (
     <QueryClientProvider client={queryClient}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="(payment)" options={{ headerShown: false }} />
-        <Stack.Screen name="(exams)" options={{ headerShown: false }} />
-        <Stack.Screen name="(study)" options={{ headerShown: false }} />
-      </Stack>
+      <AuthProviders>
+        <Stack>
+          <Stack.Screen name="(auth)" options={{headerShown: false}} />
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="(payment)" options={{ headerShown: false }} />
+          <Stack.Screen name="(exams)" options={{ headerShown: false }} />
+          <Stack.Screen name="(study)" options={{ headerShown: false }} />
+        </Stack>
+      </AuthProviders>
     </QueryClientProvider>
   );
 }

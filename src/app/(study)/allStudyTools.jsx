@@ -1,98 +1,94 @@
-import React from "react";
+import React, { useMemo } from "react";
 import {
   StyleSheet,
   Text,
   View,
-  FlatList,
   TouchableOpacity,
   Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
-import Icon from "react-native-vector-icons/MaterialIcons";
+import { FontAwesome5 } from "@expo/vector-icons";
 import { router } from "expo-router";
-
-import { useAtom, useSetAtom } from "jotai";
+import { useAtom } from "jotai";
 import { selectedSubject, selectedSubjectSpecificContent } from "../../atoms";
 
-import topics from "../../constants/topics";
-import studyTools from "../../constants/allStudyTools";
-
 const allStudyTools = () => {
+  // ← Hooks called FIRST, unconditionally
   const [selectedSubjectValue] = useAtom(selectedSubject);
-  const [selectedSubjectSpecificContentValue] = useAtom(
-    selectedSubjectSpecificContent
+  const [selectedContent] = useAtom(selectedSubjectSpecificContent);
+
+  // ← Early return AFTER hooks
+  if (!selectedSubjectValue?.length) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <LinearGradient colors={["#E0F2ED", "#FFFFFF"]} style={styles.gradient}>
+          <View style={styles.emptyContainer}>
+            <FontAwesome5 name="book-open" size={48} color="#94a3b8" />
+            <Text style={styles.emptyText}>No subject selected</Text>
+          </View>
+        </LinearGradient>
+      </SafeAreaView>
+    );
+  }
+
+  const subject = selectedSubjectValue[0]?.subjectCode || "Unknown";
+  const topicTitle = selectedContent?.title || "Topic";
+
+  const studyTools = useMemo(
+    () => [
+      { title: "Introduction", icon: "info-circle", color: "#6d4c41", route: "./Introduction" },
+      { title: "Read PDF", icon: "book-open", color: "#1976d2", route: "./readingPDF" },
+      { title: "EUEE Exams", icon: "clipboard-check", color: "#388e3c", route: "./EUEE" },
+      { title: "Practice Questions", icon: "pencil-alt", color: "#f57c00", route: "./EUEEPreparations" },
+      { title: "Active Recall", icon: "brain", color: "#8e24aa", route: "./activeRecall" },
+    ],
+    []
   );
-
-  const data = ["", " ", "", "", ""];
-
-  console.log("selected", selectedSubjectSpecificContentValue);
 
   return (
     <SafeAreaView style={styles.container}>
       <LinearGradient
-        colors={["#444852ff", "#3b5998", "#192f6a"]}
-        style={{ flex: 1 }}
+        colors={["#E0F2ED", "#FFFFFF", "#F5FFFB"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.gradient}
       >
-        {/* option 1 */}
-        <TouchableOpacity style={styles.card} onPress={() =>router.push("./Introduction")}>
-          <View style={styles.cardContent}>
-            <View style={styles.iconContainer}>
-              <Icon name="book" size={24} color="#007bff" />
-            </View>
-            <View style={styles.textContainer}>
-              <Text style={styles.title}>Introuduction</Text>
-            </View>
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.headerIcon}>
+            <FontAwesome5 name="graduation-cap" size={38} color="#239BA7" />
           </View>
-        </TouchableOpacity>
+          <Text style={styles.headerTitle}>Learning Hub</Text>
+          <Text style={styles.headerSubtitle}>{subject} • {topicTitle}</Text>
+          <View style={styles.headerUnderline} />
+        </View>
 
-        {/* option 2 */}
-        <TouchableOpacity style={styles.card} onPress={() => router.push("./readingPDF")}>
-          <View style={styles.cardContent}>
-            <View style={styles.iconContainer}>
-              <Icon name="book" size={24} color="#007bff" />
-            </View>
-            <View style={styles.textContainer}>
-              <Text style={styles.title}>read</Text>
-            </View>
-          </View>
-        </TouchableOpacity>
-
-        {/* option 3  */}
-        <TouchableOpacity style={styles.card} onPress={() => router.push("./EUEE")}>
-          <View style={styles.cardContent}>
-            <View style={styles.iconContainer}>
-              <Icon name="book" size={24} color="#007bff" />
-            </View>
-            <View style={styles.textContainer}>
-              <Text style={styles.title}>EUEE exams</Text>
-            </View>
-          </View>
-        </TouchableOpacity>
-
-        {/* option 4 */}
-        <TouchableOpacity style={styles.card} onPress={() => router.push("./EUEEPreparations")}>
-          <View style={styles.cardContent}>
-            <View style={styles.iconContainer}>
-              <Icon name="book" size={24} color="#007bff" />
-            </View>
-            <View style={styles.textContainer}>
-              <Text style={styles.title}>EUEE practice questions</Text>
-            </View>
-          </View>
-        </TouchableOpacity>
-
-        {/* option 5 */}
-        <TouchableOpacity style={styles.card} onPress={() => router.push("./activeRecall")}>
-          <View style={styles.cardContent}>
-            <View style={styles.iconContainer}>
-              <Icon name="book" size={24} color="#007bff" />
-            </View>
-            <View style={styles.textContainer}>
-              <Text style={styles.title}>active recall</Text>
-            </View>
-          </View>
-        </TouchableOpacity>
+        {/* Tools */}
+        <View style={styles.listContainer}>
+          {studyTools.map((tool) => (
+            <TouchableOpacity
+              key={tool.title}
+              style={styles.card}
+              activeOpacity={0.85}
+              onPress={() => router.push(tool.route)}
+            >
+              <LinearGradient
+                colors={["#ffffff", "#f8fcfb"]}
+                style={StyleSheet.absoluteFill}
+              />
+              <View style={styles.cardContent}>
+                <View style={[styles.iconCircle, { backgroundColor: tool.color + "18" }]}>
+                  <FontAwesome5 name={tool.icon} size={26} color={tool.color} />
+                </View>
+                <View style={styles.textContainer}>
+                  <Text style={styles.title}>{tool.title}</Text>
+                </View>
+                <FontAwesome5 name="chevron-right" size={20} color="#94a3b8" />
+              </View>
+            </TouchableOpacity>
+          ))}
+        </View>
       </LinearGradient>
     </SafeAreaView>
   );
@@ -101,66 +97,98 @@ const allStudyTools = () => {
 export default allStudyTools;
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    
-  },
+  container: { flex: 1 },
+  gradient: { flex: 1 },
+
+  // Header
   header: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#fff",
-    textAlign: "center",
-    marginVertical: 20,
-    letterSpacing: 0.5,
+    alignItems: "center",
+    paddingVertical: 28,
+    paddingHorizontal: 20,
   },
-  list: {
-    paddingHorizontal: 16,
-    paddingBottom: 20,
-  },
-  card: {
+  headerIcon: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
     backgroundColor: "#ffffff",
-    borderRadius: 12,
-    marginVertical: 8,
-    padding: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 14,
+    ...Platform.select({
+      ios: { shadowColor: "#000", shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.12, shadowRadius: 12 },
+      android: { elevation: 10 },
+    }),
+  },
+  headerTitle: {
+    fontSize: 30,
+    fontFamily: "Poppins-Bold",
+    color: "#014421",
+    letterSpacing: 0.6,
+  },
+  headerSubtitle: {
+    fontSize: 15,
+    fontFamily: "Poppins-Medium",
+    color: "#239BA7",
+    marginTop: 4,
+  },
+  headerUnderline: {
+    height: 3,
+    width: 70,
+    backgroundColor: "#239BA7",
+    borderRadius: 2,
+    marginTop: 10,
+  },
+
+  // List
+  listContainer: {
+    paddingHorizontal: 18,
+    paddingTop: 10,
+    paddingBottom: 30,
+  },
+
+  // Card
+  card: {
+    marginVertical: 11,
+    borderRadius: 20,
+    overflow: "hidden",
+    backgroundColor: "transparent",
+    ...Platform.select({
+      ios: { shadowColor: "#000", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.1, shadowRadius: 14 },
+      android: { elevation: 7 },
+    }),
   },
   cardContent: {
     flexDirection: "row",
     alignItems: "center",
+    padding: 20,
   },
-  iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "#e6f0ff",
+  iconCircle: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 12,
+    marginRight: 18,
   },
-  textContainer: {
-    flex: 1,
-  },
+  textContainer: { flex: 1 },
   title: {
     fontSize: 18,
-    fontWeight: "600",
+    fontFamily: "Poppins-SemiBold",
     color: "#1a1a1a",
+    lineHeight: 24,
   },
+
+  // Empty
   emptyContainer: {
-    alignItems: "center",
+    flex: 1,
     justifyContent: "center",
-    paddingVertical: 40,
+    alignItems: "center",
+    paddingHorizontal: 40,
   },
   emptyText: {
-    fontSize: 16,
-    color: "#4b5563",
-    textAlign: "center",
-    marginTop: 10,
-    fontWeight: "500",
+    fontSize: 18,
+    fontFamily: "Poppins-Medium",
+    color: "#6b7280",
+    marginTop: 16,
   },
 });

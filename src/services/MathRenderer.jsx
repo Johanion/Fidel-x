@@ -1,112 +1,117 @@
-import { useState, useEffect } from "react";
-import { Dimensions, StyleSheet, View } from "react-native";
-import WebView from "react-native-webview";
-import { Asset } from "expo-asset";
-import * as FileSystem from "expo-file-system";
+import React from 'react';
+import { View, ScrollView } from 'react-native';
+import Markdown from 'react-native-markdown-display';
+import MathJax from 'react-native-mathjax';
 
-const MathRenderer = ({ latex, style }) => {
-  const [webViewHeight, setWebViewHeight] = useState(24);
-  const [localHtml, setLocalHtml] = useState(null);
-  const screenWidth = Dimensions.get("window").width;
+const ReadingDoc = () => {
+  // Regex to split latex math expressions (only \\[ ... \\] and \\( ... \\))
+  const parseContent = (content) => {
+    const mathRegex = /(\\\[.*?\\\]|\\\(.*?\\\))/g;
+    const parts = content.split(mathRegex).filter(Boolean);
+    return parts.map((part, idx) => ({
+      type: mathRegex.test(part) ? 'math' : 'text',
+      content: part,
+      key: `part-${idx}`,
+    }));
+  };
 
-  useEffect(() => {
-    const loadKaTeX = async () => {
-      try {
-        // Load local JS and CSS from assets
-        const jsAsset = Asset.fromModule(require("../../assets/katex/katex.min.js"));
-        const cssAsset = Asset.fromModule(require("../../assets/katex/katex.min.css"));
+  // Converts LaTeX text markup to markdown for Markdown rendering
+  const convertLatexToMarkdown = (text) => {
+    let result = text;
+    result = result.replace(/\\section\*?\{([^}]+)\}/g, '## $1');
+    result = result.replace(/\\textbf\{([^}]+)\}/g, '**$1**');
+    result = result.replace(/\\emph\{([^}]+)\}/g, '*$1*');
+    result = result.replace(/\\textit\{([^}]+)\}/g, '*$1*');
+    result = result.replace(/\\begin\{itemize\}/g, '');
+    result = result.replace(/\\end\{itemize\}/g, '');
+    result = result.replace(/\\item\s+/g, '- ');
+    result = result.replace(/\\vspace\{[^}]+\}/g, '\n\n');
+    result = result.replace(/\\\\/g, '\n');
+    return result;
+  };
 
-        await jsAsset.downloadAsync();
-        await cssAsset.downloadAsync();
+  const content = `
+\\section*{Introduction}
 
-        const jsUri = jsAsset.localUri || jsAsset.uri;
-        const cssUri = cssAsset.localUri || cssAsset.uri;
+Welcome to this lesson on solving quadratic equations by factoring!
 
-        // Build the HTML string using local KaTeX files
-        const html = `
-          <!DOCTYPE html>
-          <html>
-            <head>
-              <meta name="viewport" content="width=device-width, initial-scale=1.0">
-              <link rel="stylesheet" href="${cssUri}">
-              <script src="${jsUri}"></script>
-              <style>
-                body {
-                  margin: 0;
-                  padding: 0;
-                  background: transparent;
-                  display: flex;
-                  align-items: center;
-                  justify-content: flex-start;
-                }
-                .math-container {
-                  display: inline-block;
-                  font-size: 16px;
-                  line-height: 1.5;
-                  color: #000 !important;
-                  max-width: 100%;
-                  overflow-wrap: break-word;
-                }
-              </style>
-            </head>
-            <body>
-              <span id="math" class="math-container"></span>
-              <script>
-                try {
-                  const latexInput = ${JSON.stringify(latex || "")};
-                  katex.render(latexInput, document.getElementById('math'), { throwOnError: false });
-                  const height = document.body.scrollHeight || 24;
-                  window.ReactNativeWebView.postMessage(JSON.stringify({ height }));
-                } catch (e) {
-                  document.getElementById('math').innerText = latexInput || 'Invalid LaTeX';
-                  window.ReactNativeWebView.postMessage(JSON.stringify({ height: 24 }));
-                }
-              </script>
-            </body>
-          </html>
-        `;
-        setLocalHtml(html);
-      } catch (err) {
-        console.error("KaTeX asset loading failed:", err);
-      }
-    };
+\\section*{Step-by-Step Guide}
 
-    loadKaTeX();
-  }, [latex]);
+\\begin{enumerate}
+  \\item Rewrite the equation: \\[
+  ax^2 + bx + c = 0
+  \\]
+  \\item Factor the quadratic: \\[
+  x^2 + 5x + 6 = 0
+  \\]
+  \\item Apply zero-product property: \\[
+  (x + 2)(x + 3) = 0
+  \\]
+  \\item Solve for \\( x \\):
+  \\[
+  x = -2 \\quad \\text{or} \\quad x = -3
+  \\]
+\\end{enumerate}
+`;
 
-  if (!localHtml) return null;
+  const parts = parseContent(content);
+
+  // Function to double escape backslashes for MathJax in React Native WebView
+  const escapeMathjax = (latex) => {
+    // Replace single backslash with double backslash for math-rendering correctness
+    return latex.replace(/\\/g, '\\\\');
+  };
 
   return (
-    <View style={[styles.container, style, { height: webViewHeight }]}>
-      <WebView
-        originWhitelist={["*"]}
-        allowFileAccess
-        allowUniversalAccessFromFileURLs
-        source={{ html: localHtml }}
-        style={[styles.webview, { width: screenWidth - 10 }]}
-        scrollEnabled={false}
-        onMessage={(event) => {
-          try {
-            const data = JSON.parse(event.nativeEvent.data);
-            if (data.height) setWebViewHeight(data.height);
-          } catch (err) {
-            console.error("Message parsing failed:", err);
-          }
+    <ScrollView style={{ flex: 1, padding: 10 }}>
+      <View
+        style={{
+          flexDirection: 'row',
+          flexWrap: 'wrap',
+          alignItems: 'center',
         }}
-      />
-    </View>
+      >
+        {parts.map(({ type, content, key }) => {
+          if (type === 'math') {
+            // Clean delimiters and escape backslashes
+            const cleaned = content.trim();
+            const wrapped = `<span>\\\\${cleaned}\\\\</span>`; // wrap for HTML MathJax
+
+            // Escape double backslash needed for react-native-mathjax WebView html
+            const escapedMath = escapeMathjax(wrapped);
+
+            // Pass as full HTML string to MathJax with math formula double escaped
+            return (
+              <MathJax
+                key={key}
+                html={escapedMath}
+                mathJaxOptions={{
+                  messageStyle: 'none',
+                  extensions: ['tex2jax.js'],
+                  jax: ['input/TeX', 'output/HTML-CSS'],
+                  tex2jax: {
+                    inlineMath: [['\\(', '\\)']],
+                    displayMath: [['\\[', '\\]']],
+                    processEscapes: true,
+                  },
+                  TeX: {
+                    extensions: ['AMSmath.js', 'AMSsymbols.js', 'noErrors.js', 'noUndefined.js'],
+                  },
+                }}
+                style={{ marginHorizontal: 4, lineHeight: 24 }}
+              />
+            );
+          } else {
+            return (
+              <Markdown key={key} style={{ flexShrink: 1 }}>
+                {convertLatexToMarkdown(content)}
+              </Markdown>
+            );
+          }
+        })}
+      </View>
+    </ScrollView>
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    justifyContent: "center",
-    alignItems: "flex-start",
-    backgroundColor: "transparent",
-  },
-  webview: {
-    backgroundColor: "transparent",
-  },
-});
-
-export default MathRenderer;
+export default ReadingDoc;

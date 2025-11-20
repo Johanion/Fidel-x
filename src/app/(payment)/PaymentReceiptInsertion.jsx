@@ -3,188 +3,385 @@ import {
   Text,
   View,
   Image,
-  Platform,
   TouchableOpacity,
   TextInput,
   ScrollView,
+  Alert,
+  ActivityIndicator,
+  Platform,
+  Linking,
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
-import { useState } from "react";
-import { Ionicons } from "@expo/vector-icons";
-
-import { selectedPaymentEnd } from "../../atoms.jsx";
+import { useEffect, useState } from "react";
+import { Ionicons, FontAwesome } from "@expo/vector-icons";
 import { useAtom } from "jotai";
-import { useMutation } from "@tanstack/react-query";
+import { useIsMutating, useMutation } from "@tanstack/react-query";
+import { selectedPaymentEnd } from "../../atoms.jsx";
 import { supabase } from "../../lib/supabase.ts";
-
 import * as ImagePicker from "expo-image-picker";
+import { LinearGradient } from "expo-linear-gradient";
+import { useAuth } from "../../providers/AuthProvider";
 
-const insertData = async (senderName, ref, image) => {
-  const { data, error } = await supabase
-    .from("payment_bills")
-    .insert({
-      user_id: "233",
-      sender_name: senderName,
-      ref_no: ref,
-      image: image,
-    })
-    .select();
+const PAYMENT_AMOUNT = "799 ETB";
 
+// Support Info
+const PHONE_1 = "+251 911 123 456";
+const PHONE_2 = "+251 911 654 321";
+const TELEGRAM_LINK = "https://t.me/your_support_bot";
+
+// uploading image to supabse storage bucket "payment_receipts"
+const uploadImageToSupabase = async (uri) => {
+  const fileRes = await fetch(uri);
+  // console.log(fileRes)
+  // const blob = await fileRes.blob();
+  const arrayBuffer = await fileRes.arrayBuffer();
+  // const mimeType = fileRes.headers.get("Content-Type") || "image/jpeg";
+
+  const fileExt = uri.split(".").pop()?.toLowerCase() ?? "jpeg";
+  const filename = `receipt_${Date.now()}_${Math.floor( Math.random() * 1000000 )}.${fileExt}`;
+  const { data, error } = await supabase.storage
+    .from("payment_receipts")
+    .upload(filename, arrayBuffer);
+
+  // const { data: urlData } = supabase.storage
+  //   .from("payment-receipts")
+  //   .getPublicUrl(filename);
+  console.log("data", data);
   if (error) {
     throw error;
   } else {
-    return data;
+    return data.path;
   }
+
+  // getting the uri of our image to add to the "payment_bill_table" databse
+  // if (error) throw error;
+  // const { data } = supabase.storage
+  //   .from("payment-receipts")
+  //   .getPublicUrl(filename);
+  // return data.publicUrl;
+};
+
+// inserting payment information to databse
+const insertData = async (
+  userID,
+  userName,
+  email,
+  senderName,
+  ref,
+  imageUrl,
+  bank
+) => {
+  const { data, error } = await supabase
+    .from("payment_bill_receipts")
+    .insert({
+      user_id: userID,
+      user_name: userName,
+      email: email,
+      sender_name: senderName || "Unknown",
+      ref_no: ref || "N/A",
+      image: imageUrl || "N/A",
+      bank: bank,
+    })
+    .select();
+  if (error) throw error;
+  return data;
+  
 };
 
 const PaymentReceiptInsertion = () => {
-  const [paymentData, setPaymentData] = useAtom(selectedPaymentEnd);
+  // user whow insert the payment data
+  const [paymentData] = useAtom(selectedPaymentEnd);
   const [image, setImage] = useState(null);
-  const [insertREF, setInsertREF] = useState(false);
-  const [ref, setRef] = useState();
-  const [senderName, setSenderName] = useState();
+  const [senderName, setSenderName] = useState("");
+  const [ref, setRef] = useState("");
+  const [selectedMethod, setSelectedMethod] = useState(null); // 'photo' or 'reference'
+  const [senderInfo, setSenderInfo]= useState({});
+  const { session, loading: authLoading } = useAuth(); // get session from AuthProvider
 
-  // inserting data to supabse database
-  const { mutate, data, isPending, error } = useMutation({
-    mutationFn: () => insertData(senderName, ref, image),
-    onSuccess: (data) => {
-      console.log(data);
+  const mutation = useMutation({
+    mutationFn: async () => {
+      let imageUrl = null;
+      if (image) imageUrl = await uploadImageToSupabase(image); // inserting image to storage and get the URL
+      return insertData(
+        senderInfo.ID,
+        senderInfo.fullName,
+        senderInfo.email,
+        senderName,
+        ref,
+        imageUrl,
+        paymentData.name
+      ); // adding user infomration to database
     },
-    onError: (data) => {
-      console.log(error);
+    onSuccess: () => {
+      Alert.alert("Success", "Payment proof submitted successfully!");
+      resetForm();
+    },
+    onError: (error) => {
+      Alert.alert("Error", error.message || "Submission failed.");
     },
   });
 
-  console.log("data:", data);
-  console.log("error:", error);
+  const resetForm = () => {
+    setImage(null);
+    setSenderName("");
+    setRef("");
+    setSelectedMethod(null);
+  };
 
-  // image picker
   const pickImage = async () => {
-    // No permissions request is necessary for launching the image library
-    let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      allowsEditing: false,
-      aspect: [4, 3],
+    const result = await ImagePicker.launchImageLibraryAsync({
+      allowsEditing: true,
       quality: 1,
     });
-
     if (!result.canceled) {
       setImage(result.assets[0].uri);
+      setSelectedMethod("photo");
     }
   };
 
+  const removeImage = () => {
+    setImage(null);
+    setSelectedMethod(null);
+  };
+
+  const handleSubmit = () => {
+    if (selectedMethod === "photo" && !image) {
+      Alert.alert("Missing", "Please upload a receipt photo.");
+      return;
+    }
+    if (selectedMethod === "reference" && (!senderName.trim() || !ref.trim())) {
+      Alert.alert("Incomplete", "Please fill in sender name and reference.");
+      return;
+    }
+    mutation.mutate();
+  };
+
+  const openTelegram = () => {
+    Linking.openURL(TELEGRAM_LINK).catch(() =>
+      Alert.alert("Error", "Telegram not installed.")
+    );
+  };
+
+  useEffect(()=>{
+            const loadSenderInfo = async()=>{
+              const { data, error } = await supabase
+                .from("profile")
+                .select("id, full_name, email")
+                .eq("id", session.user.id)
+                .single();
+    
+              if (!error && data) {
+                const { id, full_name, email } = data;
+                const updateSenderInfo = {
+                  ID: id,
+                  fullName: full_name ,
+                  email: email 
+                  
+                };
+                setSenderInfo(updateSenderInfo);}      
+            }
+            loadSenderInfo();
+            
+  },[])
+
+  const callPhone = (number) => Linking.openURL(`tel:${number}`);
+  console.log(image)
   return (
     <SafeAreaProvider>
-      <SafeAreaView style={{ flex: 1 }}>
-        <ScrollView style={styles.container}>
-          {/* payment option end logo */}
-          <View style={styles.logo}>
-            <Image
-              source={image ? { uri: image } : paymentData.image}
-              style={{ width: 150, height: 150 }}
-            />
-          </View>
+      <SafeAreaView style={styles.container}>
+        <LinearGradient
+          colors={["#E0F2ED", "#FFFFFF"]}
+          start={{ x: 1, y: 0.5 }}
+          end={{ x: 0, y: 0.5 }}
+          style={styles.gradient}
+        >
+          <ScrollView contentContainerStyle={styles.scrollContent}>
+            {/* ────────────────────── Payment Info ────────────────────── */}
+            <View style={styles.sectionCard}>
+              <View style={styles.sectionHeader}>
+                <Ionicons
+                  name="information-circle-outline"
+                  size={24}
+                  color="#239BA7"
+                />
+                <Text style={styles.sectionTitle}>Payment Information</Text>
+              </View>
 
-          <Text
-            style={{
-              alignSelf: "center",
-              marginTop: 12,
-              fontFamily: "Poppins-Bold",
-              fontSize: 20,
-            }}
-          >
-            {paymentData.name}
-          </Text>
+              <View style={styles.amountBox}>
+                <Text style={styles.amountLabel}>Amount to Pay</Text>
+                <Text style={styles.amount}>{PAYMENT_AMOUNT}</Text>
+              </View>
 
-          {/* account information */}
-          <View style={styles.info}>
-            <Text style={{ fontFamily: "Poppins-Bold" }}>
-              account information
-            </Text>
-            <Text style={{ fontFamily: "Poppins-Bold" }}>.....</Text>
-            <Text style={{ fontFamily: "Poppins-Bold" }}>.....</Text>
-            <Text style={{ fontFamily: "Poppins-Bold" }}>.....</Text>
-            <Text style={{ fontFamily: "Poppins-Bold" }}>.....</Text>
-            <Text style={{ fontFamily: "Poppins-Bold" }}>.....</Text>
-          </View>
+              <View style={styles.gatewayCard}>
+                <Image
+                  source={paymentData.image}
+                  style={styles.gatewayLogo}
+                  resizeMode="contain"
+                />
+                <View style={styles.gatewayInfo}>
+                  <Text style={styles.gatewayName}>{paymentData.name}</Text>
+                  <Text style={styles.gatewayAcc}>Acc: {paymentData.acc}</Text>
+                </View>
+              </View>
+            </View>
 
-          {/* image inset */}
-          {image ? (
-            <TouchableOpacity
-              onPress={() => {
-                mutate();
-              }}
-              disabled={isPending}
-            >
-              <View style={styles.image}>
-                <Text style={{ fontFamily: "Poppins-Black" }}>
-                  {isPending ? "Submitting" : "Submit"}
+            {/* ────────────────────── Choose Method ────────────────────── */}
+            <View style={styles.sectionCard}>
+              <View style={styles.sectionHeader}>
+                <Ionicons name="git-branch-outline" size={24} color="#239BA7" />
+                <Text style={styles.sectionTitle}>
+                  Choose Submission Method
                 </Text>
               </View>
-            </TouchableOpacity>
-          ) : (
-            <View style={{ padding: 20, alignItems: "center" }}>
-              {/* Select Image */}
+
+              {/* Option 1: Upload Photo */}
               <TouchableOpacity
-                style={styles.image}
-                onPress={() => {
-                  pickImage();
-                }}
+                style={[
+                  styles.optionCard,
+                  selectedMethod === "photo" && styles.optionCardSelected,
+                ]}
+                onPress={pickImage}
               >
-                <Ionicons name="image-outline" size={28} color="white" />
-                <Text style={styles.optionText}>Select Image</Text>
+                <View style={styles.optionIcon}>
+                  <Ionicons
+                    name="camera"
+                    size={28}
+                    color={selectedMethod === "photo" ? "#fff" : "#239BA7"}
+                  />
+                </View>
+                <View style={styles.optionTextContainer}>
+                  <Text style={styles.optionTitle}>Upload Receipt Photo</Text>
+                  <Text style={styles.optionDesc}>
+                    Take a clear photo of your payment receipt or screenshot.
+                  </Text>
+                </View>
+                {selectedMethod === "photo" && (
+                  <Ionicons name="checkmark-circle" size={24} color="#239BA7" />
+                )}
               </TouchableOpacity>
 
-              <Text style={styles.separator}>────── or ──────</Text>
-
-              {/* Insert Reference */}
+              {/* Option 2: Enter Reference */}
               <TouchableOpacity
-                style={styles.image}
-                onPress={() => setInsertREF((prev) => !prev)}
+                style={[
+                  styles.optionCard,
+                  selectedMethod === "reference" && styles.optionCardSelected,
+                ]}
+                onPress={() => setSelectedMethod("reference")}
               >
-                <Ionicons
-                  name="document-text-outline"
-                  size={28}
-                  color="white"
-                />
-                <Text style={styles.optionText}>
-                  Input Transaction Ref. & Sender Name
-                </Text>
+                <View style={styles.optionIcon}>
+                  <Ionicons
+                    name="document-text"
+                    size={28}
+                    color={selectedMethod === "reference" ? "#fff" : "#239BA7"}
+                  />
+                </View>
+                <View style={styles.optionTextContainer}>
+                  <Text style={styles.optionTitle}>Enter Reference Number</Text>
+                  <Text style={styles.optionDesc}>
+                    Provide sender name and transaction reference from your
+                    bank.
+                  </Text>
+                </View>
+                {selectedMethod === "reference" && (
+                  <Ionicons name="checkmark-circle" size={24} color="#239BA7" />
+                )}
               </TouchableOpacity>
 
-              {/* Reference Form */}
-              {insertREF && (
-                <View style={styles.formContainer}>
+              {/* Show Upload Preview */}
+              {selectedMethod === "photo" && image && (
+                <View style={styles.imagePreview}>
+                  <Image source={{ uri: image }} style={styles.previewImage} />
+                  <TouchableOpacity
+                    style={styles.removeBtn}
+                    onPress={removeImage}
+                  >
+                    <Ionicons name="close-circle" size={28} color="#e74c3c" />
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {/* Show Reference Form */}
+              {selectedMethod === "reference" && (
+                <View style={styles.form}>
                   <TextInput
                     style={styles.input}
-                    placeholder="Depositor / Sender Name"
-                    placeholderTextColor="#888"
+                    placeholder="Sender Name"
                     value={senderName}
                     onChangeText={setSenderName}
                   />
                   <TextInput
                     style={styles.input}
-                    placeholder="Transaction Ref"
-                    placeholderTextColor="#888"
+                    placeholder="Transaction Reference"
                     value={ref}
                     onChangeText={setRef}
                   />
-                  <TouchableOpacity
-                    onPress={() => {
-                      mutate();
-                    }}
-                    style={styles.submitBtn}
-                    disabled={isPending}
-                  >
-                    <Text style={styles.submitText}>
-                      {isPending ? "Submitting" : "Submit"}
-                    </Text>
-                  </TouchableOpacity>
                 </View>
               )}
             </View>
-          )}
-        </ScrollView>
+
+            {/* ────────────────────── Submit ────────────────────── */}
+            {(selectedMethod === "photo" && image) ||
+            (selectedMethod === "reference" && senderName && ref) ? (
+              <TouchableOpacity
+                style={[
+                  styles.submitBtn,
+                  mutation.isPending && styles.submitBtnDisabled,
+                ]}
+                onPress={handleSubmit}
+                disabled={mutation.isPending}
+              >
+                {mutation.isPending ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.submitText}>Submit Payment Proof</Text>
+                )}
+              </TouchableOpacity>
+            ) : null}
+
+            {mutation.error && (
+              <Text style={styles.errorText}>
+                {mutation.error.message || "Something went wrong."}
+              </Text>
+            )}
+
+            {/* ────────────────────── Support ────────────────────── */}
+            <View style={styles.supportSection}>
+              <View style={styles.sectionHeader}>
+                <Ionicons name="headset-outline" size={24} color="#239BA7" />
+                <Text style={styles.sectionTitle}>Need Help?</Text>
+              </View>
+
+              <View style={styles.contactRow}>
+                <Ionicons name="call-outline" size={20} color="#239BA7" />
+                <Text style={styles.contactText}>Call us:</Text>
+              </View>
+
+              <TouchableOpacity
+                style={styles.phoneBtn}
+                onPress={() => callPhone(PHONE_1)}
+              >
+                <Text style={styles.phoneText}>{PHONE_1}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.phoneBtn}
+                onPress={() => callPhone(PHONE_2)}
+              >
+                <Text style={styles.phoneText}>{PHONE_2}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.telegramBtn}
+                onPress={openTelegram}
+              >
+                <FontAwesome name="paper-plane" size={18} color="white" />
+                <Text style={styles.telegramText}>
+                  Chat with us on Telegram
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </LinearGradient>
       </SafeAreaView>
     </SafeAreaProvider>
   );
@@ -193,131 +390,213 @@ const PaymentReceiptInsertion = () => {
 export default PaymentReceiptInsertion;
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 10,
-    marginTop: 30,
-    flex: 1,
-  },
-  logo: {
-    marginHorizontal: 98,
-    paddingVertical: 12,
-    borderRadius: 19,
-    backgroundColor: "white",
-    alignItems: "center",
-    justifyContent: "center",
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000", // color of shadow
-        shadowOffset: { width: 0, height: 2 }, // offset in x & y
-        shadowOpacity: 0.25, // transparency of shadow
-        shadowRadius: 3.84, // blur radius
-      },
-      android: {
-        elevation: 29,
-      },
-    }),
-  },
-  info: {
-    marginHorizontal: 28,
-    paddingVertical: 12,
-    borderRadius: 19,
-    backgroundColor: "white",
-    alignItems: "center",
-    justifyContent: "center",
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000", // color of shadow
-        shadowOffset: { width: 0, height: 2 }, // offset in x & y
-        shadowOpacity: 0.25, // transparency of shadow
-        shadowRadius: 3.84, // blur radius
-      },
-      android: {
-        elevation: 29,
-      },
-    }),
-  },
-  image: {
-    backgroundColor: "#239BA7",
-    marginVertical: 33,
-    flexDirection: "row",
-    paddingHorizontal: 28,
-    paddingVertical: 12,
-    borderRadius: 19,
-    alignItems: "center",
-    justifyContent: "center",
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000", // color of shadow
-        shadowOffset: { width: 0, height: 2 }, // offset in x & y
-        shadowOpacity: 0.25, // transparency of shadow
-        shadowRadius: 3.84, // blur radius
-      },
-      android: {
-        elevation: 29,
-      },
-    }),
-  },
-  optionCard: {
-    width: "100%",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#F5F7FA",
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
-    borderRadius: 14,
-    paddingVertical: 16,
-    paddingHorizontal: 10,
-    marginBottom: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  optionText: {
-    marginLeft: 10,
-    fontSize: 15,
-    fontFamily: "Poppins-Black",
-    color: "#333",
-    textAlign: "center",
-  },
-  separator: {
-    color: "#888",
-    marginVertical: 10,
-    fontSize: 18,
-    fontFamily: "Poppins-Black",
-  },
-  formContainer: {
-    width: "100%",
-    backgroundColor: "#F9FAFB",
-    borderRadius: 14,
-    padding: 15,
-    marginTop: 10,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
-  input: {
-    width: "100%",
+  container: { flex: 1 },
+  gradient: { flex: 1 },
+  scrollContent: { padding: 20, paddingBottom: 50 },
+
+  // Section Card
+  sectionCard: {
     backgroundColor: "#fff",
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
-    marginBottom: 10,
-    fontSize: 14,
-    color: "#333",
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 20,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+      },
+      android: { elevation: 6 },
+    }),
   },
-  submitBtn: {
-    backgroundColor: "#4A90E2",
-    paddingVertical: 14,
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontFamily: "Poppins-Bold",
+    color: "#1a1a1a",
+    marginLeft: 10,
+  },
+
+  // Payment Info
+  amountBox: {
+    backgroundColor: "rgba(35, 155, 167, 0.15)",
+    paddingVertical: 16,
+    paddingHorizontal: 28,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#239BA7",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  amountLabel: {
+    fontSize: 14,
+    color: "#239BA7",
+    fontFamily: "Poppins-SemiBold",
+  },
+  amount: { fontSize: 28, fontFamily: "Poppins-Black", color: "#239BA7" },
+  gatewayCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    backgroundColor: "#f8f9fa",
+    borderRadius: 12,
+  },
+  gatewayLogo: {
+    width: 50,
+    height: 50,
     borderRadius: 10,
+    backgroundColor: "#fff",
+    padding: 6,
+  },
+  gatewayInfo: { marginLeft: 12, flex: 1 },
+  gatewayName: {
+    fontSize: 16,
+    fontFamily: "Poppins-SemiBold",
+    color: "#1a1a1a",
+  },
+  gatewayAcc: { fontSize: 12, fontFamily: "Poppins-Medium", color: "#666" },
+
+  // Option Cards
+  optionCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f8f9fa",
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: "transparent",
+  },
+  optionCardSelected: {
+    backgroundColor: "#239BA7",
+    borderColor: "#239BA7",
+  },
+  optionIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 12,
+    backgroundColor: "rgba(35, 155, 167, 0.1)",
+    justifyContent: "center",
     alignItems: "center",
   },
-  submitText: {
-    color: "#fff",
+  optionTextContainer: { flex: 1, marginLeft: 14 },
+  optionTitle: {
     fontSize: 16,
-    fontWeight: "bold",
-    fontFamily: "Poppins-Black",
+    fontFamily: "Poppins-SemiBold",
+    color: "#1a1a1a",
+  },
+  optionDesc: {
+    fontSize: 13,
+    fontFamily: "Poppins-Regular",
+    color: "#666",
+    marginTop: 2,
+  },
+
+  // Upload Preview
+  imagePreview: {
+    position: "relative",
+    height: 200,
+    borderRadius: 16,
+    overflow: "hidden",
+    marginTop: 12,
+  },
+  previewImage: { width: "100%", height: "100%" },
+  removeBtn: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    backgroundColor: "rgba(255,255,255,0.95)",
+    borderRadius: 20,
+    padding: 4,
+  },
+
+  // Reference Form
+  form: { marginTop: 12 },
+  input: {
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+    borderRadius: 10,
+    padding: 14,
+    fontSize: 15,
+    fontFamily: "Poppins-Regular",
+    marginBottom: 12,
+  },
+
+  // Submit
+  submitBtn: {
+    backgroundColor: "#239BA7",
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 10,
+  },
+  submitBtnDisabled: { backgroundColor: "#aaa" },
+  submitText: { color: "#fff", fontSize: 16, fontFamily: "Poppins-SemiBold" },
+  errorText: {
+    marginTop: 12,
+    color: "#e74c3c",
+    fontSize: 14,
+    textAlign: "center",
+    fontFamily: "Poppins-Medium",
+  },
+
+  // Support
+  supportSection: {
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 20,
+    marginTop: 10,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+      },
+      android: { elevation: 3 },
+    }),
+  },
+  contactRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+  },
+  contactText: {
+    marginLeft: 8,
+    fontSize: 15,
+    fontFamily: "Poppins-SemiBold",
+    color: "#239BA7",
+  },
+  phoneBtn: { alignSelf: "center", marginBottom: 6 },
+  phoneText: {
+    fontSize: 15,
+    fontFamily: "Poppins-Medium",
+    color: "#239BA7",
+    textDecorationLine: "underline",
+  },
+  telegramBtn: {
+    flexDirection: "row",
+    backgroundColor: "#0088cc",
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    alignSelf: "center",
+    marginTop: 12,
+  },
+  telegramText: {
+    color: "white",
+    fontSize: 15,
+    fontFamily: "Poppins-SemiBold",
+    marginLeft: 10,
   },
 });

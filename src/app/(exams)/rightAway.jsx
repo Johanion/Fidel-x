@@ -21,6 +21,7 @@ import  LoadingScreen  from "../../services/LoadingScreen.jsx";
 import  ErrorScreen  from "../../services/ErrorScreen.jsx";
 
 const RightAway = () => {
+  const queryClient = useQueryClient();
   const [selectedExam] = useAtom(selectedExamsSubject);
   const [selectedSpecifc] = useAtom(selectedExamSpecifc);
   const tableName = selectedSpecifc; // e.g. "biology_2014"

@@ -6,19 +6,35 @@ import {
   Ionicons,
 } from "@expo/vector-icons";
 
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 const TabsLayout = () => {
+  const insets = useSafeAreaInsets();
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarStyle: { backgroundColor: "black" },
-        tabBarActiveTintColor: "#bfd200", // Active icon & label color
-        tabBarInactiveTintColor: "gray", // Inactive icon & label color
+        tabBarStyle: {
+          position: "absolute", // Lift above the bottom
+          bottom: insets.bottom+12, // Space from bottom
+          marginHorizontal:10,  
+          height: 70, // Taller for pill effect
+          borderRadius: 25, // Rounded corners
+          backgroundColor: "#fff",
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 10 },
+          shadowOpacity: 0.1,
+          shadowRadius: 10,
+          elevation: 10,
+        },
+        tabBarActiveTintColor: "#43a047",
+        tabBarInactiveTintColor: "gray",
       }}
     >
       {/* home tabs */}
       <Tabs.Screen
-        name="index"
+        name="index"  
         options={{
           tabBarLabel: "Home",
           tabBarIcon: ({ color }) => (
@@ -35,11 +51,7 @@ const TabsLayout = () => {
         options={{
           tabBarLabel: "Exams",
           tabBarIcon: ({ color }) => (
-            <Ionicons
-              name="document-text-outline"
-              size={24}
-              color={color}
-            />
+            <Ionicons name="document-text-outline" size={24} color={color} />
           ),
           tabBarButton: (props) => (
             <TouchableOpacity {...props} activeOpacity={1} />

@@ -1,99 +1,136 @@
-import * as Animatable from "react-native-animatable";
-import {
-  View,
-  Text,
-  FlatList,
-  Image,
-  TouchableOpacity,
-  Platform,
-  StyleSheet,
-} from "react-native";
+// (exams)/horFeature.jsx
+import React from "react";
+import { FlatList, StyleSheet, Text, View, Platform } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { FontAwesome5 } from "@expo/vector-icons";
 
-// import specificExam from "../../constants/specificExams";
-import React, { useState } from "react";
-
-const zoomIn = {
-  0: {
-    scale: 0.8,
-  },
-  1: {
-    scale: 1,
-  },
-};
-
-const zoomOut = {
-  0: {
-    scale: 1,
-  },
-  1: {
-    scale: 0.8,
-  },
-};
-
-const TrendingItem = ({ activeItem, item }) => {
+const HorFeatureItem = ({ item }) => {
   return (
-    <Animatable.View
-      animation={activeItem === item.$id ? zoomIn : zoomOut}
-      duration={700}
-    >
-      <View style={styles.contents}>
-        <Text style={{ fontFamily: "Poppins-ExtraBold" }}>{item.type}</Text>
+    <View style={styles.cardWrapper}>
+      <LinearGradient
+        colors={["#FFFFFF", "#F8FCFB", "#E8F5F0"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.card}
+      >
+        {/* Icon Circle */}
+        <View style={styles.iconCircle}>
+          <FontAwesome5 name={item.icon || "book"} size={38} color="#239BA7" />
+        </View>
 
-        <Image source={item.image} style={{ width: 120, height: 120 }} />
-        <Text style={{ fontFamily: "Poppins-ExtraBold" }}>{item.name}</Text>
-      </View>
-    </Animatable.View>
+        {/* Text Content */}
+        <Text style={styles.typeText}>{item.type}</Text>
+        <Text style={styles.nameText}>{item.name}</Text>
+      </LinearGradient>
+    </View>
   );
 };
 
-const HorFeature = ( {data} ) => {
-  const [activeItem, setActiveItem] = useState(
-  data && data.length > 0 ? data[0].$id : null
-);
-
-
-  const viewableItemsChanged = ({ viewableItems }) => {
-    if (viewableItems.length > 0) {
-      setActiveItem(viewableItems[0].item.$id);
-    }
-  };
-
+const HorFeature = ({ data }) => {
   return (
     <FlatList
       data={data}
-      keyExtractor={(item) => item.$id} // ✅ now works because $id exists
       horizontal
-      renderItem={({ item }) => (
-        <TrendingItem activeItem={activeItem} item={item} />
-      )}
-      onViewableItemsChanged={viewableItemsChanged}
-      viewabilityConfig={{
-        itemVisiblePercentThreshold: 70,
-      }}
-      contentOffset={{ x: 0 }}
-      contentContainerStyle={{ paddingHorizontal: 10 }}
+      showsHorizontalScrollIndicator={false}
+      keyExtractor={(item) => item.$id}
+      contentContainerStyle={styles.list}
+      renderItem={({ item }) => <HorFeatureItem item={item} />}
     />
   );
 };
 
 export default HorFeature;
 
+// STYLES — CLEAN, MINIMAL, PROFESSIONAL, AESTHETIC
 const styles = StyleSheet.create({
-  contents: {
-    backgroundColor: "white",
-    justifyContent: "center",
+  list: {
+    paddingHorizontal: 3,
+    paddingVertical: 2,
+  },
+
+  cardWrapper: {
+    marginHorizontal: 10,
+  },
+
+  card: {
+    width: 256,
+    height: 180,
+    borderRadius: 28,
+    paddingVertical: 34,
+    paddingHorizontal: 16,
     alignItems: "center",
-    padding: 10,
-    margin: 5,
-    borderRadius: 12,
+    justifyContent: "center",
+    borderWidth: 1.6,
+    borderColor: "rgba(35,155,167,0.12)",
+    backgroundColor: "#fff",
+
     ...Platform.select({
       ios: {
-        shadowColor: "black",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.12,
+        shadowRadius: 20,
       },
-      android: { elevation: 30 },
+      android: {
+        elevation: 14,
+      },
     }),
+  },
+
+  iconCircle: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    backgroundColor: "#fff",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 16,
+    borderWidth: 3,
+    borderColor: "#E0F2ED",
+
+    ...Platform.select({
+      ios: {
+        shadowColor: "#239BA7",
+        shadowOpacity: 0.18,
+        shadowRadius: 10,
+      },
+      android: {
+        elevation: 6,
+      },
+    }),
+  },
+
+  badgeText: {
+    fontFamily: "Poppins-Black",
+    fontSize: 11,
+    color: "#000",
+    letterSpacing: 0.5,
+  },
+
+  typeText: {
+    fontFamily: "Poppins-SemiBold",
+    fontSize: 13,
+    color: "#239BA7",
+    letterSpacing: 0.8,
+    marginBottom: 4,
+  },
+
+  nameText: {
+    fontFamily: "Poppins-Bold",
+    fontSize: 15,
+    color: "#014421",
+    textAlign: "center",
+    lineHeight: 20,
+  },
+
+  bottomBar: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 6,
+    backgroundColor: "#FFE100",
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
   },
 });

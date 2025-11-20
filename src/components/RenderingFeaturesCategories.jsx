@@ -38,6 +38,7 @@ const TrendingItem = ({ activeItem, item }) => {
     <Animatable.View
       animation={activeItem === item.$id ? zoomIn : zoomOut}
       duration={700}
+      style={{ marginHorizontal: 8, backgroundColor: "transparent" }}
     >
       <LinearGradient
         colors={[
@@ -62,7 +63,6 @@ const TrendingItem = ({ activeItem, item }) => {
           resizeMode="cover"
         />
         <Text style={{ fontFamily: "Poppins-Bold" }}>{item.text}</Text>
-        <View></View>
       </LinearGradient>
     </Animatable.View>
   );
@@ -71,17 +71,17 @@ const TrendingItem = ({ activeItem, item }) => {
 const RenderingFeaturesCategories = ({ data }) => {
   const [activeItem, setActiveItem] = useState(data[0].$id);
 
-const viewableItemsChanged = ({ viewableItems = [] }) => {
-  if (viewableItems.length > 0) {
-    setActiveItem(viewableItems[0].item.$id);
-  }
-};
-
+  const viewableItemsChanged = ({ viewableItems = [] }) => {
+    if (viewableItems.length > 0) {
+      setActiveItem(viewableItems[0].item.$id);
+    }
+  };
 
   return (
     <FlatList
       data={data}
       keyExtractor={(item) => item.$id} // ✅ now works because $id exists
+      showsHorizontalScrollIndicator={false}
       horizontal
       renderItem={({ item }) => (
         <TrendingItem activeItem={activeItem} item={item} />
@@ -98,7 +98,7 @@ const viewableItemsChanged = ({ viewableItems = [] }) => {
 export default RenderingFeaturesCategories;
 
 const styles = StyleSheet.create({
-  flex:1,
+  flex: 1,
   contents: {
     backgroundColor: "white",
     justifyContent: "center",

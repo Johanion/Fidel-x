@@ -20,13 +20,60 @@ import RenderSubjects from "../../components/RenderSubjects.jsx";
 import RenderingFeaturesCategories from "../../components/RenderingFeaturesCategories.jsx";
 import featureCat from "../../constants/featureCat.js";
 
+import GridBackground from "../../services/GridBackground.jsx";
+import { useAuth } from "../../providers/AuthProvider";
+import { useState, useEffect, use } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { supabase } from "../../lib/supabase";
+
 export default function Index() {
+  // session data
+  const { session, loading: authLoading } = useAuth();
+  const [name, setName] = useState("");
+
+  // caching user name
+  useEffect(() => {
+    const loadName = async () => {
+      try {
+        // first try to get name from local storage
+        const storedName = await AsyncStorage.getItem("username");
+        if (storedName) {
+          setName(storedName);
+        }
+
+        // getting user first name
+        const getFirstName = (fullName) => {
+          if (!fullName) return ""; // handle empty/null input
+          // Trim spaces and split by space
+          const trimmedName = fullName.trim;
+          return fullName.trim().split(" ")[0];
+        };
+
+        // Then, try to fetch from supabase (if user is online)
+        const { data, error } = await supabase
+          .from("profile")
+          .select("full_name")
+          .eq("id", session.user.id)
+          .single();
+
+        const firstName = getFirstName(data.full_name);
+        if (!error && data) {
+          setName(firstName);
+          await AsyncStorage.setItem("username", firstName); // cache it
+        }
+      } catch (err) {
+        console.log("Error loaindg name", err);
+      }
+    };
+    loadName();
+  }, []);
+
   // featured catefories data
   const featuredCategoriesData = [
     {
       image: featureCat.ExamIcon,
-      text: "400+ EUEE and Model exams with answers",
-      colors: ["#FFFFFF", "#FFF9F6", "#53342aff", "#FFD6CC", "#FFB8A8"],
+      text: "400+ EUEE and Model exams",
+      colors: ["#FFFFFF", "#F8FCFB", "#E2F2F0", "#BDE3DE", "#95D4CE"],
 
       start: [0.19, 0.11],
       end: [0.81, 0.89],
@@ -57,6 +104,8 @@ export default function Index() {
   // page header
   const PageHeader = () => (
     <View style={{ flex: 1 }}>
+      {/* background grid */}
+      <GridBackground size={40} color="rgba(255,255,255,0.05)" />
       <View style={styles.header}>
         <View>
           <Text
@@ -64,20 +113,20 @@ export default function Index() {
               fontWeight: "600",
               fontSize: 24,
               fontFamily: "Poppins-Bold",
-              color: "white",
+              color: "black",
             }}
           >
-            Hello Andria,
+            Hello {name},
           </Text>
           <Text
             style={{
               fontFamily: "Poppins-ExtraLight",
               fontSize: 15,
               marginTop: -12,
-              color: "white",
+              color: "#006400",
             }}
           >
-            Welcom to fidel{" "}
+            Welcome to fidel{" "}
             <Text style={{ color: "#FFE100", fontFamily: "Poppins-Bold" }}>
               x
             </Text>
@@ -86,55 +135,32 @@ export default function Index() {
         <FontAwesome5
           name="stream"
           size={20}
-          color="white"
-          style={{ letterSpacing: 4 }} // small spacing effect
+          color="#014421"
+          style={{ letterSpacing: 4, paddingTop: 16 }} // small spacing effect
         />
       </View>
-
-      <View style={styles.shadowBox}>
-        <LinearGradient
-          colors={["#075499", "#CFD64A"]}
-          start={{ x: 0.93, y: 0.75 }}
-          end={{ x: 0.07, y: 0.25 }}
-          style={styles.sloganBox}
-        >
-          <Text
-            style={{
-              fontFamily: "Poppins-SemiBold",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: 10,
-            }}
-          >
-            A platform that combines scientific tools and smart learning to help
-            students understand concepts better and achieve higher marks
-          </Text>
-        </LinearGradient>
-        {/* conditionally rendering payment */}
-      </View>
-      <TouchableOpacity onPress={() => router.push("../mainPayment")}>
-        <View
-          style={{
-            backgroundColor: "#DDF4E7",
-            marginHorizontal: 20,
-            marginVertical: 10,
-            padding: 20,
-            borderRadius: 15,
-            flexDirection: "row",
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-        >
-          <FontAwesome5 name="crown" size={25} color="#FFD700" />
-          <Text style={{ fontFamily: "Poppins-Bold" }}>
-            {" "}
-            Unlock everything for just ETB 500
-          </Text>
-        </View>
-
-        {/* featured categories for main page */}
-      </TouchableOpacity>
-      <View style={{ overflow: "visible" }}>
+      // slogan box
+      <Text
+        style={{
+          alignItems: "center",
+          justifyContent: "center",
+          marginTop: 20,
+          marginHorizontal: 17,
+          fontWeight: "600",
+          fontSize: 24,
+          fontFamily: "Poppins-Bold",
+          color: "#014421",
+          borderColor: "white",
+          borderWidth: 5,
+          borderRadius: 16,
+          padding: 15,
+        }}
+      >
+        Empowering students through smart learning tools.
+      </Text>
+      // payment button
+      
+      <View style={{ overflow: "visible", marginTop: 30 }}>
         <RenderingFeaturesCategories data={featuredCategoriesData} />
       </View>
     </View>
@@ -143,105 +169,116 @@ export default function Index() {
   return (
     <SafeAreaProvider>
       <SafeAreaView
-        style={{ flex: 1, paddingTop: 10, backgroundColor: "black" }}
+        style={{ flex: 1, paddingTop: 10, backgroundColor: "white" }}
       >
-        {/* status bar */}
-        <StatusBar backgroundColor="black" barStyle="light-content" />
-        <ScrollView>
-          {/* page header */}
-          <PageHeader style={{ flex: 1 }} />
+        <LinearGradient
+          colors={["#E0F2ED", "#FFFFFF"]} // Left to right: light mint green to white
+          start={{ x: 1, y: 0.5 }} // End at right-center (horizontal gradient)
+          end={{ x: 0, y: 0.5 }} // Start at left-center
+          style={styles.container}
+        >
+          {/* status bar */}
+          <StatusBar backgroundColor="white" barStyle="dark-content" />
+          <ScrollView>
+            {/* page header */}
+            <PageHeader style={{ flex: 1 }} />
 
-          {/* natural science bar */}
-          <View
-            style={{
-              flexDirection: "row",
-              padding: 12,
-              paddingTop: 23,
-              alignItems: "center",
-            }}
-          >
+            {/* natural science bar */}
             <View
               style={{
-                backgroundColor: "#FFE100",
-                width: 6,
-                height: 23,
-                marginRight: 10,
-                borderRadius: 24,
-              }}
-            ></View>
-            <Text
-              style={{
-                fontFamily: "Poppins-Black",
-                fontSize: 21,
-                color: "white",
+                flexDirection: "row",
+                padding: 12,
+                paddingTop: 23,
+                alignItems: "center",
+                marginTop: 12,
               }}
             >
-              Natural Science
-            </Text>
-          </View>
-          <RenderSubjects data={subjects.NaturalScience} />
+              <View
+                style={{
+                  backgroundColor: "#FFE100",
+                  width: 6,
+                  height: 23,
+                  marginRight: 10,
+                  borderRadius: 24,
+                }}
+              ></View>
+              <Text
+                style={{
+                  fontFamily: "Poppins-Black",
+                  fontSize: 21,
+                  color: "#014421",
+                }}
+              >
+                Natural Science
+              </Text>
+            </View>
+            <RenderSubjects data={subjects.NaturalScience} />
 
-           {/* social science bar */}
-          <View
-            style={{
-              flexDirection: "row",
-              padding: 12,
-              paddingTop: 23,
-              alignItems: "center",
-            }}
-          >
+            {/* social science bar */}
             <View
               style={{
-                backgroundColor: "#FFE100",
-                width: 6,
-                height: 23,
-                marginRight: 10,
-                borderRadius: 24,
-              }}
-            ></View>
-            <Text
-              style={{
-                fontFamily: "Poppins-Black",
-                fontSize: 21,
-                color: "white",
+                flexDirection: "row",
+                padding: 12,
+                paddingTop: 23,
+                alignItems: "center",
               }}
             >
-              Social Science
-            </Text>
-          </View>
-          <RenderSubjects data={subjects.SocialScience} />
+              <View
+                style={{
+                  backgroundColor: "#FFE100",
+                  width: 6,
+                  height: 23,
+                  marginRight: 10,
+                  borderRadius: 24,
+                }}
+              ></View>
+              <GridBackground size={40} color="rgba(255,255,255,0.05)" />
 
-          {/* Aptitude and english */}
-          <View
-            style={{
-              flexDirection: "row",
-              padding: 12,
-              paddingTop: 23,
-              alignItems: "center",
-            }}
-          >
+              <Text
+                style={{
+                  fontFamily: "Poppins-Black",
+                  fontSize: 21,
+                  color: "#014421",
+                }}
+              >
+                Social Science
+              </Text>
+            </View>
+            <RenderSubjects data={subjects.SocialScience} />
+
+            {/* Aptitude and english */}
             <View
               style={{
-                backgroundColor: "#FFE100",
-                width: 6,
-                height: 23,
-                marginRight: 10,
-                borderRadius: 24,
-              }}
-            ></View>
-            <Text
-              style={{
-                fontFamily: "Poppins-Black",
-                fontSize: 21,
-                color: "white",
+                flexDirection: "row",
+                padding: 12,
+                paddingTop: 23,
+                alignItems: "center",
               }}
             >
-              English $ SAT
-            </Text>
-          </View>
-          <RenderSubjects data={subjects.Language} />
-
-        </ScrollView>
+              <View
+                style={{
+                  backgroundColor: "#FFE100",
+                  width: 6,
+                  height: 23,
+                  marginRight: 10,
+                  borderRadius: 24,
+                }}
+              ></View>
+              <Text
+                style={{
+                  fontFamily: "Poppins-Black",
+                  fontSize: 21,
+                  color: "#014421",
+                }}
+              >
+                English & SAT
+              </Text>
+            </View>
+            <View style={{ marginBottom: 150 }}>
+              <RenderSubjects data={subjects.Language} />
+            </View>
+          </ScrollView>
+        </LinearGradient>
       </SafeAreaView>
     </SafeAreaProvider>
   );
@@ -270,16 +307,5 @@ const styles = StyleSheet.create({
     marginHorizontal: 10,
     borderRadius: 20,
     marginTop: 10,
-    ...Platform.select({
-      ios: {
-        shadowColor: "black",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
-      },
-      android: {
-        elevation: 8,
-      },
-    }),
   },
 });

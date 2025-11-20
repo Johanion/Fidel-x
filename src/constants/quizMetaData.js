@@ -36,7 +36,7 @@ const Physics = [
 ];
 
 // common exams for both stream meta data
-const EnglishNS = [
+const English = [
   { subject: "english", type: "EUEE", year: "2014", time: 120, amount: 120, questions: "EnglishNS_2014" },
   { subject: "english", type: "EUEE", year: "2015", time: 120, amount: 120, questions: "EnglishNS_2015" },
   { subject: "english", type: "EUEE", year: "2016", time: 120, amount: 120, questions: "EnglishNS_2016" },
@@ -104,7 +104,7 @@ export default {
   Biology,
   Chemistry,
   Physics,
-  EnglishNS,
+  English,
   Aptitude,
   Economics,
   History,
