@@ -46,7 +46,7 @@ const RightAway = () => {
 
       try {
         const fileContent = await FileSystem.readAsStringAsync(
-          content.preparationUri
+          content.eueeUri
         );
         const data = JSON.parse(fileContent);
         const questions = Array.isArray(data) ? data : data.questions || [];
@@ -204,7 +204,7 @@ const RightAway = () => {
             <View style={styles.iconCircle}>
               <FontAwesome5 name="scroll" size={28} color="#FFE100" />
             </View>
-            <Text style={styles.headerTitle}>Chapter Quiz</Text>
+            <Text style={styles.headerTitle}>EUEE past Exam</Text>
           </View>
           <TouchableOpacity onPress={() => setVisible(true)}>
             <Ionicons name="stats-chart" size={26} color="#FFE100" />

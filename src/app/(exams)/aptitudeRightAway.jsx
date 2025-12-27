@@ -10,10 +10,10 @@ import Modal from "react-native-modal";
 import Svg, { Circle } from "react-native-svg";
 import { supabase } from "../../lib/supabase.ts";
 
-import { selectedExamsSubject, selectedSpecificTime } from "../../atoms";
+import { selectedExamsSubject } from "../../atoms";
+import { selectedSpecificTime } from "../../atoms";
 import { useState, useEffect } from "react";
 
-import { postServices } from "../../services/postServices";
 import { useQuery } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { selectedExamSpecifc } from "../../atoms";
@@ -32,31 +32,11 @@ const RightAway = () => {
   const [selectedOptions, setSelectedOptions] = useState({});
   const [answersCorrect, setAnswersCorrect] = useState({});
   const [expandedQuestions, setExpandedQuestions] = useState({});
-  const [timeLeft, setTimeLeft] = useState(totalTime); // 60 seconds
+  const [timeLeft, setTimeLeft] = useState(100); // 60 seconds
   const [score, setScore] = useState(0);
   const [showTime, setShowTime] = useState(false);
   const [visible, setVisisble] = useState(false);
   const [finish, setFinish] = useState(false);
-
-  // artificial intelligence states
-  const [AiVisisble, setAiVisible] = useState(false);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiText, setAiText] = useState();
-
-  // handle modal fro artifcial intelligence
-  async function handleOpenModal() {
-    setAiVisible(true);
-    setAiLoading(true);
-
-    try {
-      const result = await IntelligentRequest(missedQuestions);
-      setAiText(result);
-    } catch (e) {
-      setAiText("Error fetching response");
-    }
-
-    setAiLoading(false);
-  }
 
   // fetching the data from supabase
   const getExamQuestions = async (tableName) => {
@@ -67,65 +47,48 @@ const RightAway = () => {
 
   // count down time
   useEffect(() => {
-    // Reset timer when a new exam/time is selected
-    setTimeLeft(totalTime);
-
-    if (totalTime <= 0) {
+    if (timeLeft === 0) {
       setVisisble(true);
       return;
     }
 
     const interval = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          setVisisble(true);
-          return 0;
-        }
-        return prev - 1;
-      });
+      setTimeLeft((prev) => prev - 1);
     }, 1000);
 
-    return () => clearInterval(interval);
-  }, [totalTime]); // ← Only depend on totalTime, not timeLeft!
+    return () => clearInterval(interval); // cleanup
+  }, [timeLeft]);
 
   // setting time once
   // useEffect(()=>{
   //    setTimeLeft(totalTime);
   // },[])
 
-  const formatTime = (totalSeconds) => {
-    if (totalSeconds <= 0) return "0:00:00";
+  const formatTime = (secs) => {
+    const hours = Math.floor(secs / 3600);
+    const minutes = Math.floor((secs % 3600) / 60);
+    const seconds = secs % 60;
 
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-
-    // Always show 2 digits for minutes and seconds
-    const formattedMinutes = minutes.toString().padStart(2, "0");
-    const formattedSeconds = seconds.toString().padStart(2, "0");
-
-    // Only show hours if > 0, otherwise hide it (optional)
-    if (hours > 0) {
-      return `${hours}:${formattedMinutes}:${formattedSeconds}`;
-    } else {
-      return `${formattedMinutes}:${formattedSeconds}`;
-    }
+    return `${hours}:${minutes.toString().padStart(2, "0")}:${seconds
+      .toString()
+      .padStart(2, "0")}`;
   };
 
+  // explanation toggle
   const toggleExpand = (questionIndex) => {
     setExpandedQuestions((prev) => ({
       ...prev,
       [questionIndex]: !prev[questionIndex], // toggle only this question
     }));
   };
+
   const handleOptionPress = (questionIndex, optionIndex) => {
     setSelectedOptions((prev) => ({
       ...prev,
       [questionIndex]: optionIndex,
     }));
-
-    const isAnswerCorrect = quiz[questionIndex].correctAnswer === optionIndex;
+    const selectedQuestion = quiz.find((r) => r.id === questionIndex);
+    const isAnswerCorrect = selectedQuestion.correctAnswer === optionIndex;
     {
       isAnswerCorrect && setScore((prev) => prev + 1);
     }
@@ -173,6 +136,7 @@ const RightAway = () => {
     // default white
     let bgColor = "white";
 
+    // If user selected this option
     if (selectedOptions[questionIndex] === optionIndex) {
       if (answersCorrect[questionIndex]) {
         bgColor = "#4CAF50"; // ✅ correct selection
@@ -226,6 +190,176 @@ const RightAway = () => {
   if (!quiz) {
     return <Text>No quiz data found.</Text>;
   }
+
+  // create a fuction which parse ** ** markdown bold
+  const renderBoldText = (text) => {
+    const parts = text.split(/(\*\*.*?\*\*)/g);
+
+    return (
+      <Text>
+        {parts.map((part, index) => {
+          if (part.startsWith("**") && part.endsWith("**")) {
+            return (
+              <Text key={index} style={{ fontWeight: "bold" }}>
+                {part.substring(2, part.length - 2)}
+              </Text>
+            );
+          }
+          return <Text key={index}>{part}</Text>;
+        })}
+      </Text>
+    );
+  };
+
+  /********************************  renderingContentQuestions ******************************************/
+  const renderConentQuestions = (content, index, instruction) =>
+    content.map((item, index) => (
+      <View>
+        <View style={styles.quizBox}>
+          <View style={styles.question}>
+            <Text style={{ fontFamily: "Poppins-Medium" }}>
+              {index + 1}. {renderBoldText(item.question)}
+            </Text>
+          </View>
+          {item.options.map((option, optionIndex) => (
+            <View
+              key={optionIndex}
+              style={[
+                styles.option,
+                {
+                  backgroundColor: getOptionColor(item.id, optionIndex, item),
+                },
+              ]}
+            >
+              <TouchableOpacity
+                style={{ flex: 1 }}
+                onPress={() => {
+                  handleOptionPress(item.id, optionIndex);
+                }}
+                activeOpacity={0.7}
+                disabled={selectedOptions[item.id] !== undefined || finish}
+              >
+                <Text style={{ fontFamily: "Poppins-Medium" }}>{option}</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
+
+          {/* explanation toggle */}
+
+          {selectedOptions[item.id] !== undefined && (
+            <>
+              <View
+                style={{
+                  flex: 1,
+                  flexDirection: "row",
+                  marginTop: 7,
+                  alignItems: "center",
+                }}
+              >
+                <TouchableOpacity onPress={() => toggleExpand(item.id)}>
+                  <Text style={{ fontFamily: "Poppins-Black" }}>
+                    Explanation
+                  </Text>
+                </TouchableOpacity>
+                <Ionicons
+                  name={
+                    expandedQuestions[item.id] ? "chevron-up" : "chevron-down"
+                  }
+                  size={20}
+                  color="#333"
+                />
+              </View>
+              {expandedQuestions[item.id] && (
+                <View>
+                  <Text style={{ fontFamily: "Poppins-Light" }}>
+                    {item.explanation}
+                  </Text>
+                </View>
+              )}
+            </>
+          )}
+        </View>
+      </View>
+    ));
+
+  /****************************** Define rendering functions for each type *******************************/
+  const renderers = {
+    /*********************** passage 1 ***************************/
+    passage1: (content, contentIndex) =>
+      content.map((item, index) => (
+        <View style={{ flex: 1 }}>
+          {/* instruction */}
+          <View style={styles.quizBox}>
+            <Text style={{ fontFamily: "Regular" }}>
+              <Text style={{ fontWeight: "bold" }}>Instuction: </Text>
+              Below are the reading passage. Read each passage carefully and
+              asnswer the questions. each item has four choices. choolse the
+              best alternative.
+            </Text>
+          </View>
+          <View key={index} style={styles.quizBox}>
+            <Text style={{ fontFamily: "Poppins-Medium" }}>
+              {index + 1}. {item}
+            </Text>
+          </View>
+        </View>
+      )),
+
+    /*********************** passage question 1 ***************************/
+    passageQ1: (contents) => renderConentQuestions(contents),
+
+    /*********************** passage 2 ***************************/
+    passage2: (content, contentIndex) =>
+      content.map((item, index) => (
+        <View style={{ flex: 1 }}>
+          {/* instruction */}
+          <View style={styles.quizBox}>
+            <Text style={{ fontFamily: "Regular" }}>
+              <Text style={{ fontWeight: "bold" }}>Instuction: </Text>
+              Below are the reading passage. Read each passage carefully and
+              asnswer the questions. each item has four choices. choolse the
+              best alternative.
+            </Text>
+          </View>
+          <View key={index} style={styles.quizBox}>
+            <Text style={{ fontFamily: "Poppins-Medium" }}>
+              {index + 1}. {item}
+            </Text>
+          </View>
+        </View>
+      )),
+
+    /*********************** passage question 1 ***************************/
+    passageQ1: (contents) => renderConentQuestions(contents),
+
+    /*********************** passage question 2 ***************************/
+    passageQ2: (contents) => renderConentQuestions(contents),
+
+    /*********************** paragraph comprehension  ***************************/
+    paragraph_comprehension: (contents) => renderConentQuestions(contents),
+
+    /*********************** logical ***************************/
+    logical: (contents) => renderConentQuestions(contents),
+
+    /*********************** analogy  ***************************/
+    analogy: (contents) => analogy(contents),
+
+    /*********************** unique  ***************************/
+    unique: (contents) => renderConentQuestions(contents),
+
+    /*********************** synonym  ***************************/
+    synonym: (contents) => renderConentQuestions(contents),
+
+    /*********************** antonym  ***************************/
+    antonym: (contents) => renderConentQuestions(contents),
+
+    /*********************** maths  ***************************/
+    mahts: (contents) => renderConentQuestions(contents),
+
+    /*********************** sentence completion ***************************/
+    sentence_completion: (contents) => renderConentQuestions(contents),
+
+  };
 
   return (
     <SafeAreaProvider>
@@ -298,50 +432,9 @@ const RightAway = () => {
                 >
                   <Text style={styles.optionText}>Done</Text>
                 </TouchableOpacity>
-
-                {/* intelligent analysis */}
-                <TouchableOpacity
-                  style={[styles.optionBtn, { backgroundColor: "#4CAF50" }]}
-                  onPress={() => {
-                    setVisisble(false);
-                    router.back();
-                  }}
-                >
-                  <Text style={styles.optionText}>AI Review</Text>
-                </TouchableOpacity>
               </View>
             </View>
           </Modal>
-
-          {/* Artifical intelligence analysis modal view */}
-          <View style={styles.aicontainer}>
-            {/* Button to open modal */}
-            <TouchableOpacity style={styles.btn} onPress={handleOpenModal}>
-              <Text style={styles.aibtnText}>Show AI Answer</Text>
-            </TouchableOpacity>
-
-            {/* Modal */}
-            <Modal visible={AiVisisble} transparent animationType="slide">
-              <View style={styles.aimodalContainer}>
-                <View style={styles.aimodalContent}>
-                  <Text style={styles.aititle}>AI Response</Text>
-
-                  {aiLoading ? (
-                    <ActivityIndicator size="large" />
-                  ) : (
-                    <Text style={styles.aiText}>{aiText}</Text>
-                  )}
-
-                  <TouchableOpacity
-                    style={[styles.aibtn, { backgroundColor: "#222" }]}
-                    onPress={() => setAiVisible(false)}
-                  >
-                    <Text style={styles.aibtnText}>Close</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </Modal>
-          </View>
 
           <View>
             {/* header contents */}
@@ -441,85 +534,36 @@ const RightAway = () => {
             <FlatList
               data={quiz}
               renderItem={({ item, index: questionIndex }) => {
-                return (
-                  <View>
-                    <View style={styles.quizBox}>
-                      <View style={styles.question}>
-                        <Text style={{ fontFamily: "Poppins-Medium" }}>
-                          {questionIndex + 1}. {item.question}
-                        </Text>
-                      </View>
-                      {item.options.map((option, optionIndex) => (
-                        <View
-                          key={optionIndex}
-                          style={[
-                            styles.option,
-                            {
-                              backgroundColor: getOptionColor(
-                                questionIndex,
-                                optionIndex,
-                                item
-                              ),
-                            },
-                          ]}
-                        >
-                          <TouchableOpacity
-                            style={{ flex: 1 }}
-                            onPress={() => {
-                              handleOptionPress(questionIndex, optionIndex);
-                            }}
-                            activeOpacity={0.7}
-                            disabled={
-                              selectedOptions[questionIndex] !== undefined
-                            }
-                          >
-                            <Text style={{ fontFamily: "Poppins-Medium" }}>
-                              {option}
-                            </Text>
-                          </TouchableOpacity>
-                        </View>
-                      ))}
+                // mounting all exam types
+                const passage1 = quiz.find((r) => r.type === "passage1");
+                const passageQ1 = quiz.find((r) => r.type === "passageQ1");
+                const passage2 = quiz.find((r) => r.type === "passage2");
+                const passageQ2 = quiz.find((r) => r.type === "passageQ2");
+                const paragraph_comprehension = quiz.find((r) => r.type === "paragraph_comprehension");
+                const sentence_completion = quiz.find((r) => r.type === "logical");
+                const logical = quiz.find((r) => r.type === "logical");
+                const analogy = quiz.find((r) => r.type === "analogy");
+                const unique = quiz.find((r) => r.type === "unique");
+                const synonym = quiz.find((r) => r.type === "synonym");
+                const antonym = quiz.find((r) => r.type === "antonym");
+                const maths = quiz.find((r) => r.type === "letter_writing");
 
-                      {/* explanation toggle */}
-
-                      {selectedOptions[questionIndex] !== undefined && (
-                        <>
-                          <View
-                            style={{
-                              flex: 1,
-                              flexDirection: "row",
-                              marginTop: 7,
-                              alignItems: "center",
-                            }}
-                          >
-                            <TouchableOpacity
-                              onPress={() => toggleExpand(questionIndex)}
-                            >
-                              <Text style={{ fontFamily: "Poppins-Black" }}>
-                                Explanation
-                              </Text>
-                            </TouchableOpacity>
-                            <Ionicons
-                              name={
-                                expandedQuestions[questionIndex]
-                                  ? "chevron-up"
-                                  : "chevron-down"
-                              }
-                              size={20}
-                              color="#333"
-                            />
-                          </View>
-                          {expandedQuestions[questionIndex] && (
-                            <View>
-                              <Text style={{ fontFamily: "Poppins-Light" }}>
-                                {item.explanation}
-                              </Text>
-                            </View>
-                          )}
-                        </>
-                      )}
-                    </View>
-                  </View>
+                const allContents = [
+                  passage1,
+                  passageQ1,
+                  passage2,
+                  passageQ2,
+                  paragraph_comprehension,
+                  sentence_completion,
+                  logical,
+                  unique,
+                  analogy,
+                  synonym,
+                  antonym,
+                  maths,
+                ].filter(Boolean); // remove nulls
+                return allContents.map((content, index) =>
+                  renderers(content, index)
                 );
               }}
             />
@@ -567,12 +611,6 @@ const styles = StyleSheet.create({
         elevation: 25,
       },
     }),
-  },
-  questionText: {
-    fontFamily: "Poppins-Medium",
-    fontSize: 16,
-    color: "#014421",
-    lineHeight: 24,
   },
   option: {
     backgroundColor: "#fff",
@@ -646,41 +684,5 @@ const styles = StyleSheet.create({
   totalText: {
     fontSize: 18,
     color: "#777",
-  },
-  aicontainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  aibtn: {
-    backgroundColor: "#3A6DF0",
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 10,
-  },
-  aibtnText: {
-    color: "#fff",
-    fontSize: 16,
-  },
-  aimodalContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.5)",
-  },
-  aimodalContent: {
-    width: "85%",
-    backgroundColor: "white",
-    padding: 20,
-    borderRadius: 15,
-  },
-  aititle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 10,
-  },
-  aiText: {
-    fontSize: 16,
-    marginVertical: 10,
   },
 });

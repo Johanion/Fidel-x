@@ -1,14 +1,14 @@
 import { StyleSheet, Text, View } from 'react-native'
 import React from 'react'
 
-const StudyGuide = () => {
+const aptitudeOnceFinished = () => {
   return (
     <View>
-      <Text>StudyGuide</Text>
+      <Text>aptitudeOnceFinished</Text>
     </View>
   )
 }
 
-export default StudyGuide
+export default aptitudeOnceFinished
 
 const styles = StyleSheet.create({})

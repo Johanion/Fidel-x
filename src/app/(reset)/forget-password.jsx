@@ -15,105 +15,41 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
 
 import { supabase } from "../../lib/supabase";
-import { useAuth } from "../../providers/AuthProvider";
+import * as Linking from "expo-linking";
 
 import GridBackground from "../../services/GridBackground";
-import * as Application from 'expo-application';
 
-export default function LogIn() {
+export default function ResetPassword() {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [logLoading, setLogLoading] = useState(false);
-  const [authorized, setAuthorized] = useState(false);
-
-  // Focus states for inputs
   const [focusedInput, setFocusedInput] = useState(null);
 
-  const { session, loading: authLoading } = useAuth();
-  const router = useRouter();
-
-  //if user has already login redirect to the main page
-  useEffect(() => {
-    if (session ) {
-      router.replace("/(tabs)");
-    }
-  }, [session, router]);
-
-  // if session is loading showing loading or activity indicator
-  if (authLoading) {
-    return (
-      <LinearGradient
-        colors={["#E0F2ED", "#FFFFFF"]}
-        style={styles.loadingContainer}
-      >
-        <ActivityIndicator size="large" color="#239BA7" />
-      </LinearGradient>
-    );
-  }
-
-  const signInWithEmail = async () => {
-    if (!email || !password) {
-      Alert.alert("Error", "make sure to insert all fields");
+  // Change function name
+  const handleResetPassword = async () => {
+    if (!email.trim()) {
+      Alert.alert("Error", "Please enter your email address.");
       return;
     }
 
     setLogLoading(true);
 
+    const resetPasswordURL = Linking.createURL("reset-password");
+    console.log(resetPasswordURL)
     try {
-      const { data: authData, error: signInError } =
-        await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-      try {
-        let uniqueId = null;
-        if (Platform.OS ==='android'){
-            uniqueId = Application.getAndroidId()
-            console.log(uniqueId)
-        } else if (Platform.OS ==='ios'){
-            uniqueId = await Application.getIosIdForVendorAsync();
-        }
-        const { data: deviceData, error: deviceError } = await supabase
-          .from("deviceUUID")
-          .select("deviceID")
-          .eq("user_id", authData.user.id)
-          .single(); // fetch single row
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: resetPasswordURL,
+      });
 
-        // if (deviceError && deviceError.code !== "PGRST116") throw deviceError; // ignore "no row found"
-        // console.log(deviceError);
+      if (error) throw error;
 
-        if (!deviceData || !deviceData.deviceID) {
-          // No device yet, assign current device
-          console.log("uniqued iddddddddddddddddddddddd", uniqueId);
-          const { error: upsertError } = await supabase
-            .from("deviceUUID")
-            .upsert({ user_id: authData.user.id, deviceID: uniqueId });
-          if (upsertError) throw upsertError;
-          console.log("upsert errorr", upsertError)
-          setAuthorized(true);
-        } else if (deviceData.deviceID === uniqueId) {
-          // Same device, allow login 
-          setAuthorized(true);
-        } else {
-          // Logged in from another device
-          Alert.alert(
-            "Already logged in",
-            "You are logged in from another device. please contact our Support Center."
-          );
-        }
-      } catch (e) {
-        Alert.alert("Sign-in failed", e.message ?? "Something went wrong.");
-      }
-
-      if (signInError) throw signInError;
-      if (!authData?.user) throw new Error("No user returned after sign-in.");
-
+      Alert.alert(
+        "Check Your Email",
+        "We've sent a password reset link to your email. Check also your spam folder."
+      );
     } catch (err) {
-      console.error(err);
-      Alert.alert("Sign-in failed", err.message ?? "Something went wrong.");
+      Alert.alert("Error", err.message);
     } finally {
       setLogLoading(false);
     }
@@ -128,16 +64,7 @@ export default function LogIn() {
       key: "email",
       keyboardType: "email-address",
     },
-    {
-      label: "Password",
-      value: password,
-      setValue: setPassword,
-      icon: "lock-closed-outline",
-      key: "password",
-      secure: true,
-    },
   ];
-  console.log("sign innnnnnnnnnnnnnnnnnnnnn");
   return (
     <SafeAreaProvider>
       <SafeAreaView style={{ flex: 1 }}>
@@ -169,7 +96,7 @@ export default function LogIn() {
                 <Text style={styles.logoSubText}>x</Text>
               </View>
 
-              <Text style={styles.title}>Sign in to your Account</Text>
+              <Text style={styles.title}>Reset your Password</Text>
               <Text style={styles.subtitle}>
                 sign in and start learning smarter
               </Text>
@@ -212,35 +139,14 @@ export default function LogIn() {
                     styles.submitButton,
                     logLoading && styles.submitButtonDisabled,
                   ]}
-                  onPress={signInWithEmail}
+                  onPress={() => handleResetPassword()}
                   disabled={logLoading}
                 >
                   {logLoading ? (
                     <ActivityIndicator color="#fff" />
                   ) : (
-                    <Text style={styles.submitButtonText}>Sign In</Text>
+                    <Text style={styles.submitButtonText}>Send email</Text>
                   )}
-                </TouchableOpacity>
-
-                {/* Login Link */}
-                <TouchableOpacity
-                  activeOpacity={1}
-                  style={styles.loginLink}
-                  onPress={() => router.push("/sign-up")}
-                >
-                  <Text style={styles.loginText}>
-                    Already have an account?{" "}
-                    <Text style={styles.loginHighlight}>Sign up</Text>
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  activeOpacity={1}
-                  style={styles.loginLink}
-                  onPress={() => router.push("../(reset)/forget-password")}
-                >
-                  <Text style={styles.loginText}>
-                    <Text style={styles.loginHighlight}>Forget Password</Text>
-                  </Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>

@@ -21,6 +21,7 @@ import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../providers/AuthProvider";
 
 import GridBackground from "../../services/GridBackground";
+import * as Application from 'expo-application';
 
 export default function SignUp() {
   const [email, setEmail] = useState("");
@@ -75,9 +76,6 @@ export default function SignUp() {
       if (signUpError) throw signUpError;
       if (!authData?.user) throw new Error("No user returned after sign-up.");
 
-      // getting user id after registeration
-      const userId = authData.user.id;
-
       // filling profile table automatically after signup
       const { error: profileError } = await supabase.from("profile").insert({
         id: authData.user.id,
@@ -87,25 +85,32 @@ export default function SignUp() {
         stream,
         grade,
       });
+      // filling device uuid table
+      try {
+        if (Platform.OS ==='android'){
+          const uniquedId = Application.getAndroidId()
+        } else if (Platform.OS ==='ios'){
+          const uniqueId = await Application.getIosIdForVendorAsync();
+        }
+        const { error: deviceIdError } = await supabase
+          .from("deviceUUID")
+          .insert({
+            id: authData.user.id,
+            deviceID: uniqueId,
+          });
 
-      // if (profileError) throw profileError;
-
-      // // filling payment table automatically after signup
-      // const { error: paymentError } = await supabase
-      //   .from("payment_status")
-      //   .insert({
-      //     id: userId,
-      //     email: authData.user.email,
-      //     full_name: fullName,
-      //     // status: false [default value when user enter for the very first time]
-      //   });
-
-      // if (paymentError) throw paymentError;
-
-      //   Alert.alert(
-      //     "Success",
-      //     "Account created! Please check your email to confirm."
-      //   );
+        if (deviceIdError) {
+          throw deviceIdError;
+        }
+      } catch (e) {
+        const uniqueId = null; // iOS IDFV / Android ANDROID_ID
+        const { error: deviceIdError } = await supabase
+          .from("deviceUUID")
+          .insert({
+            id: authData.user.id,
+            deviceID: uniqueId,
+          });
+      }
     } catch (err) {
       console.error(err);
       Alert.alert("Sign-up failed", err.message ?? "Something went wrong.");
@@ -161,7 +166,7 @@ export default function SignUp() {
       keyboardType: "numeric",
     },
   ];
-
+ console.log("sign uppppppppppppppppppppppppppppppppppp")
   return (
     <SafeAreaProvider>
       <SafeAreaView style={{ flex: 1 }}>
@@ -248,8 +253,9 @@ export default function SignUp() {
 
                 {/* Login Link */}
                 <TouchableOpacity
+                  activeOpacity={1}
                   style={styles.loginLink}
-                  onPress={() => router.push("/login")}
+                  onPress={() => router.push("/log-in")}
                 >
                   <Text style={styles.loginText}>
                     Already have an account?{" "}

@@ -1,4 +1,3 @@
-import * as Animatable from "react-native-animatable";
 import {
   View,
   Text,
@@ -7,75 +6,47 @@ import {
   TouchableOpacity,
   Platform,
   StyleSheet,
+  Linking
 } from "react-native";
-
 import { LinearGradient } from "expo-linear-gradient";
-import { FontAwesome5 } from "@expo/vector-icons";
-
-// import specificExam from "../../constants/specificExams";
 import React, { useState } from "react";
+import { router } from "expo-router";
 
-const zoomIn = {
-  0: {
-    scale: 0.9,
-  },
-  1: {
-    scale: 1,
-  },
-};
-
-const zoomOut = {
-  0: {
-    scale: 1,
-  },
-  1: {
-    scale: 0.9,
-  },
-};
-
-const TrendingItem = ({ activeItem, item }) => {
+const TrendingItem = ({  item }) => {
+  const TELEGRAM_LINK="https://t.me/reggae_music_collection";
   return (
-    <Animatable.View
-      animation={activeItem === item.$id ? zoomIn : zoomOut}
-      duration={700}
-      style={{ marginHorizontal: 8, backgroundColor: "transparent" }}
-    >
-      <LinearGradient
-        colors={[
-          item.colors[0],
-          item.colors[1],
-          item.colors[2],
-          item.colors[3],
-          item.colors[4],
-        ]}
-        start={{ x: item.start[0], y: item.start[1] }}
-        end={{ x: item.end[0], y: item.end[1] }}
-        style={styles.contents}
-      >
-        <Image
-          source={item.image}
-          style={{
-            width: 100,
-            height: 100,
-            marginBottom: 30,
-            alignSelf: "center",
-          }}
-          resizeMode="cover"
-        />
-        <Text style={{ fontFamily: "Poppins-Bold" }}>{item.text}</Text>
-      </LinearGradient>
-    </Animatable.View>
+    <View style={{ marginHorizontal: 8, backgroundColor: "transparent" }}>
+      <TouchableOpacity 
+          activeOpacity={1} style={{flex:1}} 
+          onPress={()=>{item.id!=='telegram'?(router.push(`/${item.id}`)):(Linking.openURL(TELEGRAM_LINK).catch(() => alert("Telegram not installed")))}}>
+        <LinearGradient
+          colors={[
+            item.colors[0],
+            item.colors[1],
+            item.colors[2],
+            item.colors[3],
+            item.colors[4],
+          ]}
+          style={styles.contents}
+        >
+          <Image
+            source={item.image}
+            style={{
+              width: 100,
+              height: 100,
+              marginBottom: 30,
+              alignSelf: "center",
+            }}
+            resizeMode="cover"
+          />
+          <Text style={{ fontFamily: "Poppins-Bold" }}>{item.text}</Text>
+        </LinearGradient>
+      </TouchableOpacity>
+    </View>
   );
 };
 
 const RenderingFeaturesCategories = ({ data }) => {
-  const [activeItem, setActiveItem] = useState(data[0].$id);
-
-  const viewableItemsChanged = ({ viewableItems = [] }) => {
-    if (viewableItems.length > 0) {
-      setActiveItem(viewableItems[0].item.$id);
-    }
-  };
 
   return (
     <FlatList
@@ -84,13 +55,8 @@ const RenderingFeaturesCategories = ({ data }) => {
       showsHorizontalScrollIndicator={false}
       horizontal
       renderItem={({ item }) => (
-        <TrendingItem activeItem={activeItem} item={item} />
+        <TrendingItem item={item} />
       )}
-      onViewableItemsChanged={viewableItemsChanged}
-      viewabilityConfig={{
-        itemVisiblePercentThreshold: 70,
-      }}
-      contentOffset={{ x: 0 }}
     />
   );
 };
@@ -98,7 +64,7 @@ const RenderingFeaturesCategories = ({ data }) => {
 export default RenderingFeaturesCategories;
 
 const styles = StyleSheet.create({
-  flex: 1,
+  container: { flex: 1 },
   contents: {
     backgroundColor: "white",
     justifyContent: "center",
@@ -117,3 +83,4 @@ const styles = StyleSheet.create({
     }),
   },
 });
+

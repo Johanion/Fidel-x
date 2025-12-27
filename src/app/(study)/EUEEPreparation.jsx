@@ -167,7 +167,7 @@ const EUEEPreparation = () => {
             <View style={styles.iconCircle}>
               <FontAwesome5 name="scroll" size={28} color="#FFE100" />
             </View>
-            <Text style={styles.headerTitle}>EUEE Past Exam</Text>
+            <Text style={styles.headerTitle}>EUEE practice Exam</Text>
           </View>
           <TouchableOpacity onPress={() => setVisible(true)}>
             <Ionicons name="stats-chart" size={26} color="#FFE100" />

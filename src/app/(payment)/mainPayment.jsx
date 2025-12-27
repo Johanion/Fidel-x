@@ -24,16 +24,17 @@ const TELEGRAM_LINK = "https://t.me/your_support_bot"
 
 const menu = () => {
   const paymentGatewayData = [
-    { name: "Telebirr", image: gateway.telebirr, acc: "111111111111" },
-    { name: "CBE Birr", image: gateway.cbeBirr, acc: "2222222222222" },
-    { name: "E-birr", image: gateway.ebirr, acc: "33333333333333" },
-    { name: "Awash Bank", image: gateway.awash, acc: "444444444444" },
+    { name: "Telebirr", image: gateway.telebirr, acc: "0976070344", reciever: "Samrawit Tadesse" },
+    { name: "CBE ", image: gateway.cbeBirr, acc: "1000585463454", reciever: "Yohannes Tadesse" },
+    { name: "CBE Birr", image: gateway.cbeBirr, acc: "0976070344", reciever: "Yonas Tasesse" },
+    { name: "Awash Bank", image: gateway.awash, acc: "444444444444", reciever: "Yohanis Taddese" },
     { name: "Abyssinia Bank", image: gateway.abyssinia, acc: "5555555555" },
-    { name: "COOP", image: gateway.coop, acc: "66666666666" },
+    { name: "COOP", image: gateway.coop, acc: "1016800305435", reciever: "Yohannes Tadesse" },
     { name: "Wegagen Bank", image: gateway.wegagen, acc: "777777777777" },
     { name: "Nib Bank", image: gateway.nib, acc: "88888888888888" },
     { name: "Hibret Bank", image: gateway.hibret, acc: "999999999" },
   ];
+
 
   const renderHeader = () => (
     <View style={styles.headerContainer}>

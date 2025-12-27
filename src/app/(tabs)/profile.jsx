@@ -15,11 +15,15 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons, FontAwesome5, MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useRouter } from "expo-router";
 import { useAuth } from "../../providers/AuthProvider";
 import { supabase } from "../../lib/supabase";
 import GridBackground from "../../services/GridBackground.jsx";
+import { useAtom, useSetAtom } from "jotai";
+import { themeAtom } from "../../atoms.jsx";
 
 const APP_VERSION = "1.0.0"; // current app version
+const router = useRouter();
 
 export default function ProfileScreen({ navigation }) {
   const [isEditing, setIsEditing] = useState(false);
@@ -30,9 +34,31 @@ export default function ProfileScreen({ navigation }) {
     stream: "Science",
     status: false,
   });
+  const [theme, setTheme] = useAtom(themeAtom);
 
   const { session, loading: authLoading } = useAuth(); // get session from AuthProvider
-
+  const colors = {
+    light: {
+      backgroundColor: "white",
+      greeting: "#111111",
+      welcome: "#006400",
+      fidelx: "#FFE100",
+      darkGreen: "#014421",
+      pageGradient1: "#E0F2ED",
+      pageGradient2: "#FFFFFF",
+      moon: "#014421",
+    },
+    dark: {
+      backgroundColor: "black",
+      greeting: "#C9D1D9",
+      welcome: "#C9D1D9",
+      fidelx: "#FFE100",
+      darkGreen: "#E5E7EB",
+      pageGradient1: "#0B1220",
+      pageGradient2: "#020617",
+      moon: "#C9D1D9",
+    },
+  };
   useEffect(() => {
     const loadProfile = async () => {
       try {
@@ -101,20 +127,26 @@ export default function ProfileScreen({ navigation }) {
     loadProfile();
   }, [session?.user?.id]);
 
-  const handleLogout = () => {
+  // handle sign out logic
+  async function handleSignOut() {
+    // Always destructure the error
     Alert.alert("Logout", "Are you sure you want to log out?", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Logout",
         style: "destructive",
         onPress: async () => {
-          await supabase.auth.signOut();
-          navigation.replace("Login");
+          const { error: LogOutError } = await supabase.auth.signOut();
+          router.replace("../log-in");
         },
       },
     ]);
-  };
+    if (LogOutError) {
+      throw Errror(LogOutError);
+    }
+  }
 
+  // handle sign in logic
   const handleSave = async () => {
     setIsEditing(false);
     await Promise.all([
@@ -129,7 +161,7 @@ export default function ProfileScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <LinearGradient colors={["#E0F2ED", "#FFFFFF"]} style={styles.background}>
+      <LinearGradient colors={[ colors[theme].pageGradient1, colors[theme].pageGradient2]} style={styles.background}>
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
@@ -175,10 +207,10 @@ export default function ProfileScreen({ navigation }) {
           </View>
 
           {/* Profile Card */}
-          <View style={styles.profileCardWrapper}>
-            <View style={styles.profileCardWrapper}></View>
-            <View style={styles.profileCard}>
-              <View style={styles.cardHeader}>
+          <View style={[styles.profileCardWrapper, {color: colors[theme].backgroundColor}]}>
+            <View style={[styles.profileCardWrapper, {color: colors[theme].backgroundColor}]}></View>
+            <View style={[styles.profileCard, {color: colors[theme].backgroundColor}]}>
+              <View style={[styles.cardHeader , {color: colors[theme].backgroundColor}]}>
                 <Text style={styles.cardTitle}>Student Profile</Text>
                 <TouchableOpacity onPress={() => setIsEditing(!isEditing)}>
                   <Ionicons
@@ -300,7 +332,7 @@ export default function ProfileScreen({ navigation }) {
           <View style={styles.footerActions}>
             <TouchableOpacity
               style={styles.logoutButton}
-              onPress={handleLogout}
+              onPress={handleSignOut}
             >
               <Ionicons name="log-out" size={20} color="#F44336" />
               <Text style={styles.logoutText}>Logout</Text>

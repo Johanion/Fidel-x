@@ -13,5 +13,5 @@
     "**/*.tsx",
     ".expo/types/**/*.ts",
     "expo-env.d.ts"
-, "src/app/(tabs)/index.jsx", "src/app/_layout.jsx", "src/services/MathRenderer.jsx"  ]
+, "src/app/(tabs)/index.jsx", "src/app/_layout.jsx", "src/services/MathRenderer.jsx", "src/lib/notifications.js", "src/providers/NotificationProvider.jsx"  ]
 }

@@ -26,6 +26,7 @@ export default function ActiveRecallScreen() {
 
   // DEBUG: SEE THE REAL PATH
   console.log("Flashcards URI:", content?.flashcardsUri);
+  console.log(content);
 
   useEffect(() => {
     const loadOfflineQuiz = async () => {
@@ -37,6 +38,16 @@ export default function ActiveRecallScreen() {
 
       try {
         // FIXED: DO NOT ADD ".json" AGAIN — IT'S ALREADY THERE!
+        const fileInfo = await FileSystem.getInfoAsync(content.flashcardsUri);
+        if (!fileInfo.exists) {
+          console.log("File does NOT exist at path:");
+          setError("Flashcards file missing. Please re-download the topic.");
+          setIsLoading(false);
+          return;
+        }
+        else if (fileInfo.exists){
+          console.log("dkalkdfalkfjlajf;lajf;lajlasjflasosoasljsaf;oajfiwfoaf;osajflkvnhfowajf;lasnf;l")
+        }
         const fileContent = await FileSystem.readAsStringAsync(
           content.flashcardsUri
         );

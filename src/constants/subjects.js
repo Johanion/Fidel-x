@@ -1,12 +1,13 @@
-import units from "./units.js";
-import topics from "../constants/topics.js"
+import topics from "../constants/topics.js" // get topics for each stream 
 
+// Social Science
 const SocialScience = [
   { name: "Economics",topic: topics.Economics },
   { name: "History",  topic: topics.History },
   { name: "Geography", topic: topics.Geography },
 ];
 
+// Natural science
 const NaturalScience = [
   { name: "Biology",  topic: topics.Biology },
   { name: "Chemistry",  topic: topics.Chemistry },

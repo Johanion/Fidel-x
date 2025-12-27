@@ -15,26 +15,56 @@ import Modal from "react-native-modal";
 import { LinearGradient } from "expo-linear-gradient";
 import { FontAwesome5, MaterialIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { themeAtom } from "../../atoms.jsx";
 
-import { selectedExamsSubject, selectedExamSpecifc } from "../../atoms";
+import { selectedExamsSubject, selectedExamSpecifc, selectedSpecificTime } from "../../atoms";
 
 const ListOfExams = () => {
   const [selectedExam] = useAtom(selectedExamsSubject);
-  const [,setSelectedSpecificExam] = useAtom(selectedExamSpecifc);
+  const [,setSelectedSpecificExam] = useAtom(selectedExamSpecifc); //eg. biology_2014
+  const [,setSelectedTime] = useAtom(selectedSpecificTime);
   const [selectedExamSubject, setSelectedExamSubject] = useState(null);
   const [visible, setVisible] = useState(false);
+  const [theme, setTheme] = useAtom(themeAtom);
 
   // Subjects requiring LaTeX rendering
   const LatexExams = ["Physics", "Chemistry", "Aptitude"];
-  
+  const colors = {
+    light: {
+      backgroundColor: "white",
+      greeting: "#111111",
+      welcome: "#006400",
+      fidelx: "#FFE100",
+      darkGreen: "#014421",
+      pageGradient1: "#E0F2ED",
+      pageGradient2: "#FFFFFF",
+      moon: "#014421",
+      info: "#555",
+      border: "#fff",
+
+    },
+    dark: {
+      backgroundColor: "black",
+      greeting: "#C9D1D9",
+      welcome: "#C9D1D9",
+      fidelx: "#FFE100",
+      darkGreen: "#E5E7EB",
+      pageGradient1: "#0B1220",
+      pageGradient2: "#020617",
+      moon: "#C9D1D9",
+      info: "#fff",
+      border: "#fff"
+    },
+  };
   // rendering exams
   const renderItem = ({ item }) => (
     <TouchableOpacity
-      style={styles.card}
+      style={[styles.card, {backgroundColor: colors[theme].backgroundColor}, {borderColor: colors[theme].border}]}
       activeOpacity={0.88}
       onPress={() => {
         setVisible(true);
         setSelectedSpecificExam(item.questions); // selected exam subject
+        setSelectedTime(item.time);
         setSelectedExamSubject(item);
       }}
     >
@@ -43,18 +73,18 @@ const ListOfExams = () => {
           <MaterialIcons name="auto-stories" size={26} color="#239BA7" />
         </View>
         <View style={styles.textContainer}>
-          <Text style={styles.title}>
+          <Text style={[styles.title, {color: colors[theme].darkGreen}]}>
             {item.type} {item.year}
           </Text>
           <View style={styles.infoRow}>
             <MaterialIcons name="quiz" size={18} color="#666" />
-            <Text style={styles.infoText}>
+            <Text style={[styles.infoText, {color: colors[theme].info}]}>
               {item.amount || "N/A"} Questions
             </Text>
           </View>
           <View style={styles.infoRow}>
             <MaterialIcons name="timer" size={18} color="#666" />
-            <Text style={styles.infoText}>
+            <Text style={[styles.infoText, {color: colors[theme].info}]}>
               {item.time ? `${item.time} mins` : "N/A"}
             </Text>
           </View>
@@ -66,11 +96,11 @@ const ListOfExams = () => {
 
   return (
     <SafeAreaProvider>
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, {backgroundColor: colors[theme].backgroundColor }]}>
         <StatusBar backgroundColor="#E0F2ED" barStyle="dark-content" />
 
         <LinearGradient
-          colors={["#E0F2ED", "#FFFFFF"]}
+          colors={[colors[theme].pageGradient1, colors[theme].pageGradient2]}
           start={{ x: 1, y: 0.5 }}
           end={{ x: 0, y: 0.5 }}
           style={styles.gradient}
@@ -84,7 +114,7 @@ const ListOfExams = () => {
             contentContainerStyle={styles.list}
             ListHeaderComponent={
               <View style={styles.header}>
-                <Text style={styles.headerText}>{selectedExam.name} Exams</Text>
+                <Text style={[styles.headerText, {color: colors[theme].darkGreen}]}>{selectedExam.name} Exams</Text>
               </View>
             }
             ListEmptyComponent={
@@ -110,10 +140,18 @@ const ListOfExams = () => {
                 style={[styles.optionBtn, styles.rightAwayBtn]}
                 onPress={() => {
                   setVisible(false);
-                  const route = LatexExams.includes(selectedExam.name)
+                  if(selectedExam.name==="English"){
+                    const route="englishRightAway";
+                    router.push(route);
+                  } else if (selectedExam.name==="Aptitude"){
+                    const route="aptitudeRightAway";
+                    router.push(route);
+                  } else {
+                    const route = LatexExams.includes(selectedExam.name)
                     ? "rightAwayLatex"
                     : "rightAway";
-                  router.push(route);
+                    router.push(route);
+                  }
                 }}
               >
                 <MaterialIcons name="play-arrow" size={22} color="#FFF" />
@@ -124,10 +162,17 @@ const ListOfExams = () => {
                 style={[styles.optionBtn, styles.onceFinishedBtn]}
                 onPress={() => {
                   setVisible(false);
+                  if(selectedExam.name==="English"){
+                    const route="englishOnceFinished"
+                  } else if (selectedExam.name==="Aptitude"){
+                    const route="aptitudeOnceFinished";
+                  } else {
                   const route = LatexExams.includes(selectedExam.name)
                     ? "onceFinishedLatex"
                     : "onceFinished";
                   router.push(route);
+                  }
+                 router.push(route);
                 }}
               >
                 <MaterialIcons name="schedule" size={22} color="#FFF" />
@@ -152,7 +197,7 @@ export default ListOfExams;
 
 // ─────── STYLES – INDEX.TSX AESTHETIC CLONE ───────
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
+  container: { flex: 1 },
   gradient: { flex: 1 },
   list: { paddingHorizontal: 16, paddingBottom: 40 },
 
@@ -162,15 +207,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   headerText: {
-    fontFamily: "Poppins-Black",
+    fontFamily: "Poppins-Bold",
     fontSize: 24,
-    color: "#014421",
     textAlign: "center",
   },
 
   // Card
   card: {
-    backgroundColor: "#fff",
     borderRadius: 20,
     marginVertical: 10,
     padding: 18,
@@ -205,7 +248,6 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: "Poppins-SemiBold",
     fontSize: 17,
-    color: "#014421",
     marginBottom: 6,
   },
   infoRow: {
@@ -216,7 +258,6 @@ const styles = StyleSheet.create({
   infoText: {
     fontFamily: "Poppins-Medium",
     fontSize: 14,
-    color: "#555",
     marginLeft: 8,
   },
 

@@ -53,8 +53,8 @@ const styles = StyleSheet.create({
   },
 
   card: {
-    width: 256,
-    height: 180,
+    width: 236,
+    height: 170,
     borderRadius: 28,
     paddingVertical: 34,
     paddingHorizontal: 16,

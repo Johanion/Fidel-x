@@ -14,102 +14,126 @@ import { LinearGradient } from "expo-linear-gradient";
 import { FontAwesome5 } from "@expo/vector-icons";
 import * as Animatable from "react-native-animatable";
 import { router } from "expo-router";
-import HorFeature from "../(exams)/horFeature.jsx";
+import HorFeature from "../(exams)/horFeature.jsx"; // horizontal exam features for specific subjects
 import specificExam from "../../constants/specificExams";
-import { useSetAtom } from "jotai";
+import { useAtom, useSetAtom } from "jotai";
 import { selectedExamsSubject } from "../../atoms.jsx";
 import GridBackground from "../../services/GridBackground.jsx";
-import Exam from "../../constants/quizMetaData.js"
+import Exam from "../../constants/quizMetaData.js";
+import { themeAtom } from "../../atoms.jsx";
 
-// YOUR ICONS + DATA
-const examIcons = {
-  Physics: {
-    id: "1",
-    name: "Physics",
-    icon: "atom",
-    color: "#f57c00",
-    gradient: ["#e8f5e9", "#c8e6c9"],
-    exams: Exam.Physics,
+const colors = {
+  light: {
+    backgroundColor: "white",
+    greeting: "#111111",
+    welcome: "#006400",
+    fidelx: "#FFE100",
+    darkGreen: "#014421",
+    pageGradient1: "#E0F2ED",
+    pageGradient2: "#FFFFFF",
+    moon: "#C9D1D9",
   },
-  Chemistry: {
-    id: "2",
-    name: "Chemistry",
-    icon: "flask",
-    color: "#1e88e5",
-    gradient: ["#e8f5e9", "#c8e6c9"],
-    exams: Exam.Chemistry,
-  },
-  Biology: {
-    id: "3",
-    name: "Biology",
-    icon: "leaf",
-    color: "#43a047",
-    gradient: ["#e8f5e9", "#c8e6c9"],
-    exams: Exam.Biology,
-  },
-  NaturalMathematics: {
-    id: "4",
-    name: "N.Maths",
-    icon: "square-root-alt",
-    color: "#8e24aa",
-    gradient: ["#e8f5e9", "#c8e6c9"],
-    exams: Exam.NaturalMathematics,
-  },
-  English: {
-    id: "5",
-    name: "English",
-    icon: "book",
-    color: "#1565c0",
-    gradient: ["#e0f2ed", "#b2e4e0"],
-    exams: Exam.English,
-  },
-  Aptitude: {
-    id: "6",
-    name: "Aptitude",
-    icon: "brain",
-    color: "#239BA7",
-    gradient: ["#e0f2ed", "#b2e4e0"],
-    exams: Exam.Aptitude,
-  },
-  Geography: {
-    id: "7",
-    name: "Geography",
-    icon: "globe-africa",
-    color: "#00695C",
-    gradient: ["#e8f5e9", "#c8e6c9"],
-    exams: Exam.Geography,
-  },
-  History: {
-    id: "8",
-    name: "History",
-    icon: "landmark",
-    color: "#5d4037",
-    gradient: ["#e8f5e9", "#c8e6c9"],
-    exams: Exam.History,
-  },
-  SocialMathematics: {
-    id: "9",
-    name: "S.Maths",
-    icon: "calculator",
-    color: "#827717",
-    gradient: ["#e8f5e9", "#c8e6c9"],
-    exams: Exam.SocialMathematics,
-  },
-  Economics: {
-    id: "10",
-    name: "Economics",
-    icon: "chart-line",
-    color: "#33691E",
-    gradient: ["#e8f5e9", "#c8e6c9"],
-    exams: Exam.Economics,
+  dark: {
+    backgroundColor: "black",
+    greeting: "#C9D1D9",
+    welcome: "#C9D1D9",
+    fidelx: "#FFE100",
+    darkGreen: "#E5E7EB",
+    pageGradient1: "#0B1220",
+    pageGradient2: "#020617",
+    moon: "#014421",
   },
 };
-
-// getting values of keys in examIcons
-const examList = Object.values(examIcons);
-
 const ExamScreen = () => {
+  // YOUR ICONS + DATA
+  const examIcons = {
+    Physics: {
+      id: "1",
+      name: "Physics",
+      icon: "atom",
+      color: "#f57c00",
+      gradient: ["#e8f5e9", "#c8e6c9"],
+      exams: Exam.Physics,
+    },
+    Chemistry: {
+      id: "2",
+      name: "Chemistry",
+      icon: "flask",
+      color: "#1e88e5",
+      gradient: ["#e8f5e9", "#c8e6c9"],
+      exams: Exam.Chemistry,
+    },
+    Biology: {
+      id: "3",
+      name: "Biology",
+      icon: "leaf",
+      color: "#43a047",
+      gradient: ["#e8f5e9", "#c8e6c9"],
+      exams: Exam.Biology,
+    },
+    NaturalMathematics: {
+      id: "4",
+      name: "Natural Mathematics",
+      icon: "square-root-alt",
+      color: "#8e24aa",
+      gradient: ["#e8f5e9", "#c8e6c9"],
+      exams: Exam.NaturalMaths,
+    },
+    English: {
+      id: "5",
+      name: "English",
+      icon: "book",
+      color: "#1565c0",
+      gradient: ["#e0f2ed", "#b2e4e0"],
+      exams: Exam.English,
+    },
+    Aptitude: {
+      id: "6",
+      name: "Aptitude",
+      icon: "brain",
+      color: "#239BA7",
+      gradient: ["#e0f2ed", "#b2e4e0"],
+      exams: Exam.Aptitude,
+    },
+    Geography: {
+      id: "7",
+      name: "Geography",
+      icon: "globe-africa",
+      color: "#00695C",
+      gradient: ["#e8f5e9", "#c8e6c9"],
+      exams: Exam.Geography,
+    },
+    History: {
+      id: "8",
+      name: "History",
+      icon: "landmark",
+      color: "#5d4037",
+      gradient: ["#e8f5e9", "#c8e6c9"],
+      exams: Exam.History,
+    },
+    SocialMathematics: {
+      id: "9",
+      name: "Socail Mathematics",
+      icon: "calculator",
+      color: "#827717",
+      gradient: ["#e8f5e9", "#c8e6c9"],
+      exams: Exam.SocialMaths,
+    },
+    Economics: {
+      id: "10",
+      name: "Economics",
+      icon: "chart-line",
+      color: "#33691E",
+      gradient: ["#e8f5e9", "#c8e6c9"],
+      exams: Exam.Economics,
+    },
+  };
+
+  // getting values of keys in examIcons
+  const examList = Object.values(examIcons); // get values of examIcons
+
   const setSelectedExam = useSetAtom(selectedExamsSubject);
+  const [theme, setTheme] = useAtom(themeAtom);
 
   const handleSelection = (item) => {
     setSelectedExam({
@@ -119,7 +143,7 @@ const ExamScreen = () => {
     });
     router.push("../listOfExams");
   };
-  
+
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.container}>
@@ -127,7 +151,7 @@ const ExamScreen = () => {
 
         {/* MAIN GRADIENT + CONTENT */}
         <LinearGradient
-          colors={["#E0F2ED", "#FFFFFF"]}
+          colors={[colors[theme].pageGradient1, colors[theme].pageGradient2]}
           start={{ x: 1, y: 0.5 }}
           end={{ x: 0, y: 0.5 }}
           style={styles.gradient}
@@ -137,23 +161,31 @@ const ExamScreen = () => {
             numColumns={2}
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.list}
-            ListHeaderComponent={<HeaderSection />}
+            ListHeaderComponent={
+              <HeaderSection theme={theme} colors={colors} />
+            }
             renderItem={({ item, index }) => (
-              <TouchableOpacity
-                activeOpacity={1}
-                onPress={() => handleSelection(item)}
-                style={styles.cardWrapper}
-              >
-                <LinearGradient
-                  colors={item.gradient}
-                  style={styles.card}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
+              <View style={{ flex: 1 }}>
+                <TouchableOpacity
+                  activeOpacity={1}
+                  onPress={() => handleSelection(item)}
+                  style={styles.cardWrapper}
                 >
-                  <FontAwesome5 name={item.icon} size={40} color={item.color} />
-                  <Text style={styles.cardTitle}>{item.name}</Text>
-                </LinearGradient>
-              </TouchableOpacity>
+                  <LinearGradient
+                    colors={item.gradient}
+                    style={styles.card}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  >
+                    <FontAwesome5
+                      name={item.icon}
+                      size={40}
+                      color={item.color}
+                    />
+                    <Text style={styles.cardTitle}>{item.name}</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
             )}
             showsVerticalScrollIndicator={false}
           />
@@ -163,18 +195,34 @@ const ExamScreen = () => {
   );
 };
 
-// HeaderSection — now with Animations
-const HeaderSection = () => (
+// HeaderSection
+const HeaderSection = ({ theme, colors }) => (
   <View style={styles.header}>
     {/* GRID BACKGROUND — FIRST = TRUE BACKGROUND */}
     <GridBackground size={40} color="rgba(255,255,255,0.05)" />
     {/* Hero Card */}
 
     {/* Section Title */}
-    <Animatable.View animation="fadeInLeft" duration={600} delay={400}>
+    <Animatable.View
+      animation="fadeInLeft"
+      duration={600}
+      delay={400}
+      style={{
+        borderWidth: 10,
+        padding: 10,
+        borderRadius: 19,
+        paddingVertical: 15,
+        borderColor: colors[theme].backgroundColor,
+        marginTop: 15,
+        marginBottom: 15,
+      }}
+    >
       <View style={styles.sectionTitle}>
         <View style={styles.titleBar} />
-        <Text style={styles.sectionText}> English & Aptitude Tests</Text>
+        <Text style={[styles.sectionText, { color: colors[theme].darkGreen }]}>
+          {" "}
+          English & Aptitude Tests
+        </Text>
       </View>
     </Animatable.View>
 
@@ -184,10 +232,26 @@ const HeaderSection = () => (
     </View>
 
     {/* Section Title */}
-    <Animatable.View animation="fadeInLeft" duration={600} delay={400}>
+
+    <Animatable.View
+      animation="fadeInLeft"
+      duration={600}
+      delay={400}
+      style={{
+        borderWidth: 10,
+        padding: 10,
+        borderRadius: 19,
+        paddingBottom: 12,
+        paddingTop: 2,
+        borderColor: colors[theme].backgroundColor,
+        marginTop: 14,
+      }}
+    >
       <View style={styles.sectionTitle}>
         <View style={styles.titleBar} />
-        <Text style={styles.sectionText}>EUEE & Model Exams</Text>
+        <Text style={[styles.sectionText, { color: colors[theme].darkGreen }]}>
+          EUEE & Model Exams
+        </Text>
       </View>
     </Animatable.View>
   </View>
@@ -221,7 +285,12 @@ const styles = StyleSheet.create({
       android: { elevation: 18 },
     }),
   },
-  heroGradient: { flex: 1, flexDirection: "row", padding: 20 },
+  heroGradient: {
+    flex: 1,
+    flexDirection: "row",
+    padding: 20,
+  },
+
   iconSection: {
     width: 88,
     justifyContent: "center",
@@ -285,13 +354,13 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     marginRight: 12,
   },
-  sectionText: { fontFamily: "Poppins-Black", fontSize: 22, color: "#014421" },
+  sectionText: { fontFamily: "Poppins-Bold", fontSize: 22 },
 
   // Cards
   cardWrapper: { flex: 1, padding: 8 },
   card: {
-    width: 160,
-    height: 160,
+    aspectRatio: 1.2,
+    width: 167,
     borderRadius: 16,
     justifyContent: "center",
     alignItems: "center",

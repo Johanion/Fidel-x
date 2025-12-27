@@ -38,7 +38,9 @@ const uploadImageToSupabase = async (uri) => {
   // const mimeType = fileRes.headers.get("Content-Type") || "image/jpeg";
 
   const fileExt = uri.split(".").pop()?.toLowerCase() ?? "jpeg";
-  const filename = `receipt_${Date.now()}_${Math.floor( Math.random() * 1000000 )}.${fileExt}`;
+  const filename = `receipt_${Date.now()}_${Math.floor(
+    Math.random() * 1000000
+  )}.${fileExt}`;
   const { data, error } = await supabase.storage
     .from("payment_receipts")
     .upload(filename, arrayBuffer);
@@ -85,7 +87,6 @@ const insertData = async (
     .select();
   if (error) throw error;
   return data;
-  
 };
 
 const PaymentReceiptInsertion = () => {
@@ -95,7 +96,7 @@ const PaymentReceiptInsertion = () => {
   const [senderName, setSenderName] = useState("");
   const [ref, setRef] = useState("");
   const [selectedMethod, setSelectedMethod] = useState(null); // 'photo' or 'reference'
-  const [senderInfo, setSenderInfo]= useState({});
+  const [senderInfo, setSenderInfo] = useState({});
   const { session, loading: authLoading } = useAuth(); // get session from AuthProvider
 
   const mutation = useMutation({
@@ -162,30 +163,29 @@ const PaymentReceiptInsertion = () => {
     );
   };
 
-  useEffect(()=>{
-            const loadSenderInfo = async()=>{
-              const { data, error } = await supabase
-                .from("profile")
-                .select("id, full_name, email")
-                .eq("id", session.user.id)
-                .single();
-    
-              if (!error && data) {
-                const { id, full_name, email } = data;
-                const updateSenderInfo = {
-                  ID: id,
-                  fullName: full_name ,
-                  email: email 
-                  
-                };
-                setSenderInfo(updateSenderInfo);}      
-            }
-            loadSenderInfo();
-            
-  },[])
+  useEffect(() => {
+    const loadSenderInfo = async () => {
+      const { data, error } = await supabase
+        .from("profile")
+        .select("id, full_name, email")
+        .eq("id", session.user.id)
+        .single();
+
+      if (!error && data) {
+        const { id, full_name, email } = data;
+        const updateSenderInfo = {
+          ID: id,
+          fullName: full_name,
+          email: email,
+        };
+        setSenderInfo(updateSenderInfo);
+      }
+    };
+    loadSenderInfo();
+  }, []);
 
   const callPhone = (number) => Linking.openURL(`tel:${number}`);
-  console.log(image)
+  console.log(image);
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.container}>
@@ -211,16 +211,22 @@ const PaymentReceiptInsertion = () => {
                 <Text style={styles.amountLabel}>Amount to Pay</Text>
                 <Text style={styles.amount}>{PAYMENT_AMOUNT}</Text>
               </View>
-
-              <View style={styles.gatewayCard}>
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", marginBottom:19 }}>
                 <Image
                   source={paymentData.image}
                   style={styles.gatewayLogo}
                   resizeMode="contain"
                 />
+                <Text style={styles.gatewayName}>{paymentData.name}</Text>
+              </View>
+              <View style={styles.gatewayCard}>
                 <View style={styles.gatewayInfo}>
-                  <Text style={styles.gatewayName}>{paymentData.name}</Text>
-                  <Text style={styles.gatewayAcc}>Acc: {paymentData.acc}</Text>
+                  <Text style={styles.gatewayAcc}>
+                    Account: {paymentData.acc}
+                  </Text>
+                  <Text style={styles.gatewayAcc}>
+                    Reciever name: {paymentData.reciever}
+                  </Text>
                 </View>
               </View>
             </View>
@@ -455,11 +461,12 @@ const styles = StyleSheet.create({
   },
   gatewayInfo: { marginLeft: 12, flex: 1 },
   gatewayName: {
+    marginLeft: 12,
     fontSize: 16,
     fontFamily: "Poppins-SemiBold",
     color: "#1a1a1a",
   },
-  gatewayAcc: { fontSize: 12, fontFamily: "Poppins-Medium", color: "#666" },
+  gatewayAcc: { fontSize: 14, fontFamily: "Poppins-Bold", color: "green" },
 
   // Option Cards
   optionCard: {

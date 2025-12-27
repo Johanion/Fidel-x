@@ -1,5 +1,4 @@
 // screens/ProductivityHub.jsx
-import React from "react";
 import {
   View,
   Text,
@@ -13,14 +12,16 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { FontAwesome5 } from "@expo/vector-icons";
-import * as Animatable from "react-native-animatable";
 import GridBackground from "../../services/GridBackground.jsx";
 import { router } from "expo-router";
+import { themeAtom } from "../../atoms.jsx";
+import { useAtom, useSetAtom } from "jotai";
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = width - 48;
 
 const ProductivityHub = () => {
+  const [theme, setTheme] = useAtom(themeAtom);
   const tools = [
     {
       id: 1,
@@ -28,7 +29,7 @@ const ProductivityHub = () => {
       icon: "calendar-alt",
       gradient: ["#E8F5E9", "#C8E6C9", "#A5D6A7"],
       color: "#2E7D32",
-      route: "../../(tools)/ToDoList.jsx",
+      route: "/ToDoList",
       desc: "Plan your perfect study day",
     },
     {
@@ -51,7 +52,7 @@ const ProductivityHub = () => {
     },
     {
       id: 4,
-      title: "AI Study Guide",
+      title: "Scientific Study Guide",
       icon: "lightbulb",
       gradient: ["#E3F2FD", "#BBDEFB", "#90CAF9"],
       color: "#1565C0",
@@ -60,6 +61,30 @@ const ProductivityHub = () => {
     },
   ];
 
+  // color theme
+ const colors = {
+    light: {
+      backgroundColor: "white",
+      greeting: "#111111",
+      welcome: "#006400",
+      fidelx: "#FFE100",
+      darkGreen: "#014421",
+      pageGradient1: "#E0F2ED",
+      pageGradient2: "#FFFFFF",
+      moon: "#014421",
+    },
+    dark: {
+      backgroundColor: "black",
+      greeting: "#C9D1D9",
+      welcome: "#C9D1D9",
+      fidelx: "#FFE100",
+      darkGreen: "#E5E7EB",
+      pageGradient1: "#0B1220",
+      pageGradient2: "#020617",
+      moon: "#C9D1D9",
+    },
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar backgroundColor="#E0F2ED" barStyle="dark-content" />
@@ -67,56 +92,43 @@ const ProductivityHub = () => {
       {/* GRID BACKGROUND */}
 
       <LinearGradient
-        colors={["#E0F2ED", "#FFFFFF"]}
+        colors={[colors[theme].pageGradient1, colors[theme].pageGradient2]}
         start={{ x: 1, y: 0.5 }}
         end={{ x: 0, y: 0.5 }}
         style={styles.gradient}
       >
-        <GridBackground size={40} color="rgba(255,255,255,0.05)" />
-
-        {/* HEADER */}
-        <View style={styles.header}>
-          <Text style={styles.pageTitle}>Productivity Hub</Text>
-        </View>
-
         {/* SCROLLABLE LIST */}
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
+          <GridBackground size={40} color="rgba(255,255,255,0.05)" />
+          {/* HEADER */}
+          <View style={styles.header}>
+            <Text style={[styles.pageTitle, {color: colors[theme].darkGreen}]}>Productivity Hub</Text>
+          </View>
           {tools.map((tool, index) => (
-            <Animatable.View
-              key={tool.id}
-              animation="fadeInUp"
-              duration={700}
-              delay={index * 150}
+            <TouchableOpacity
+              activeOpacity={0.88}
+              onPress={() => router.push(tool.route)}
+              style={styles.cardWrapper}
             >
-              <TouchableOpacity
-                activeOpacity={0.88}
-                onPress={() => router.push(tool.route)}
-                style={styles.cardWrapper}
+              <LinearGradient
+                colors={tool.gradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.card}
               >
-                <LinearGradient
-                  colors={tool.gradient}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.card}
-                >
-                  <View style={styles.iconBg}>
-                    <FontAwesome5
-                      name={tool.icon}
-                      size={42}
-                      color={tool.color}
-                    />
-                  </View>
+                <View style={styles.iconBg}>
+                  <FontAwesome5 name={tool.icon} size={42} color={tool.color} />
+                </View>
 
-                  <View style={styles.textContent}>
-                    <Text style={styles.cardTitle}>{tool.title}</Text>
-                    <Text style={styles.cardDesc}>{tool.desc}</Text>
-                  </View>
-                </LinearGradient>
-              </TouchableOpacity>
-            </Animatable.View>
+                <View style={styles.textContent}>
+                  <Text style={styles.cardTitle}>{tool.title}</Text>
+                  <Text style={styles.cardDesc}>{tool.desc}</Text>
+                </View>
+              </LinearGradient>
+            </TouchableOpacity>
           ))}
 
           {/* EXTRA SPACE AT BOTTOM */}
@@ -141,7 +153,7 @@ const styles = StyleSheet.create({
   },
   pageTitle: {
     fontFamily: "Poppins-Black",
-    fontSize: 32,
+    fontSize: 28,
     color: "#014421",
     letterSpacing: 0.6,
   },
@@ -155,15 +167,16 @@ const styles = StyleSheet.create({
   gold: { color: "#FFE100", fontFamily: "Poppins-Black" },
 
   scrollContent: {
+    flex:1,
     paddingHorizontal: 24,
-    paddingBottom: 20,
+    paddingBottom: 80,
   },
   cardWrapper: {
     marginBottom: 22,
   },
   card: {
     width: CARD_WIDTH,
-    height: 148,
+    height: 0.34*width,
     borderRadius: 32,
     paddingHorizontal: 24,
     paddingVertical: 20,

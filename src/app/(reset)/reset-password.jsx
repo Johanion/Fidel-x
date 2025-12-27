@@ -1,143 +1,102 @@
+// In a dedicated screen: app/reset-password-form.js
 import React, { useState, useEffect } from "react";
+import { supabase } from "../../lib/supabase";
+import { Alert, StyleSheet, Platform } from "react-native";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
+import * as Linking from "expo-linking";
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  ActivityIndicator,
-  Alert,
-  ScrollView,
   KeyboardAvoidingView,
-  Platform,
+  ScrollView,
+  TextInput,
+  Text,
+  View,
+  TouchableOpacity,
+  ActivityIndicator,
   StatusBar,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
-import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-
-import { supabase } from "../../lib/supabase";
-import { useAuth } from "../../providers/AuthProvider";
-
 import GridBackground from "../../services/GridBackground";
-import * as Application from 'expo-application';
 
-export default function LogIn() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [logLoading, setLogLoading] = useState(false);
-  const [authorized, setAuthorized] = useState(false);
-
-  // Focus states for inputs
+export default function ResetPasswordForm() {
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [focusedInput, setFocusedInput] = useState(null);
+  const [logLoading, setLogLoading] = useState(false);
 
-  const { session, loading: authLoading } = useAuth();
   const router = useRouter();
+  // const url = Linking.getInitialURL();
+  // console.log("URL", url);
+  // if (url) {
+  //   const { hostname, path, queryParams } = Linking.parse(url);
+  //   console.log(
+  //     `Linked to app with hostname: ${hostname}, path: ${path} and data: ${JSON.stringify(
+  //       queryParams
+  //     )}`
+  //   );
+  // }
 
-  //if user has already login redirect to the main page
-  useEffect(() => {
-    if (session ) {
-      router.replace("/(tabs)");
+  const handleUpdatePassword = async () => {
+    if (newPassword.length < 6) {
+      Alert.alert("Error", "Password must be at least 6 characters.");
+      return;
     }
-  }, [session, router]);
-
-  // if session is loading showing loading or activity indicator
-  if (authLoading) {
-    return (
-      <LinearGradient
-        colors={["#E0F2ED", "#FFFFFF"]}
-        style={styles.loadingContainer}
-      >
-        <ActivityIndicator size="large" color="#239BA7" />
-      </LinearGradient>
-    );
-  }
-
-  const signInWithEmail = async () => {
-    if (!email || !password) {
-      Alert.alert("Error", "make sure to insert all fields");
+    if (newPassword !== confirmPassword) {
+      Alert.alert("Error", "Passwords do not match.");
       return;
     }
 
-    setLogLoading(true);
+    // Call updateUser() - this works because the user is currently
+    // authenticated via the password recovery session token.
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword,
+    });
 
-    try {
-      const { data: authData, error: signInError } =
-        await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-      try {
-        let uniqueId = null;
-        if (Platform.OS ==='android'){
-            uniqueId = Application.getAndroidId()
-            console.log(uniqueId)
-        } else if (Platform.OS ==='ios'){
-            uniqueId = await Application.getIosIdForVendorAsync();
-        }
-        const { data: deviceData, error: deviceError } = await supabase
-          .from("deviceUUID")
-          .select("deviceID")
-          .eq("user_id", authData.user.id)
-          .single(); // fetch single row
-
-        // if (deviceError && deviceError.code !== "PGRST116") throw deviceError; // ignore "no row found"
-        // console.log(deviceError);
-
-        if (!deviceData || !deviceData.deviceID) {
-          // No device yet, assign current device
-          console.log("uniqued iddddddddddddddddddddddd", uniqueId);
-          const { error: upsertError } = await supabase
-            .from("deviceUUID")
-            .upsert({ user_id: authData.user.id, deviceID: uniqueId });
-          if (upsertError) throw upsertError;
-          console.log("upsert errorr", upsertError)
-          setAuthorized(true);
-        } else if (deviceData.deviceID === uniqueId) {
-          // Same device, allow login 
-          setAuthorized(true);
-        } else {
-          // Logged in from another device
-          Alert.alert(
-            "Already logged in",
-            "You are logged in from another device. please contact our Support Center."
-          );
-        }
-      } catch (e) {
-        Alert.alert("Sign-in failed", e.message ?? "Something went wrong.");
-      }
-
-      if (signInError) throw signInError;
-      if (!authData?.user) throw new Error("No user returned after sign-in.");
-
-    } catch (err) {
-      console.error(err);
-      Alert.alert("Sign-in failed", err.message ?? "Something went wrong.");
-    } finally {
-      setLogLoading(false);
+    if (error) {
+      Alert.alert("Update Failed", error.message);
+    } else {
+      Alert.alert(
+        "Success!",
+        "Your password has been updated. Please sign in with your new password."
+      );
+      // Log out the user from the temporary recovery session and redirect to login
+      await supabase.auth.signOut();
+      router.replace("/(auth)/log-in.jsx");
     }
   };
 
   const inputFields = [
     {
-      label: "Email Address",
-      value: email,
-      setValue: setEmail,
-      icon: "mail-outline",
-      key: "email",
-      keyboardType: "email-address",
+      label: "new password",
+      value: newPassword,
+      setValue: setNewPassword,
+      icon: "lock-closed-outline",
+      key: "password",
+      secure: true,
     },
     {
-      label: "Password",
-      value: password,
-      setValue: setPassword,
+      label: "confirm new password",
+      value: confirmPassword,
+      setValue: setConfirmPassword,
       icon: "lock-closed-outline",
       key: "password",
       secure: true,
     },
   ];
-  console.log("sign innnnnnnnnnnnnnnnnnnnnn");
+
+  useEffect(() => {
+    async function checkAndSetSession() {
+      // ... (rest of your logic to handle loading state) ...
+
+      console.log("CORRECT WAY: Use await inside the async function to get the string value");
+      const initialUrl = await Linking.getInitialURL(); // <-- Use await here
+      console.log("Captured URL STRING:", initialUrl);
+  
+    }
+    checkAndSetSession();
+  }, []);
+
   return (
     <SafeAreaProvider>
       <SafeAreaView style={{ flex: 1 }}>
@@ -169,7 +128,7 @@ export default function LogIn() {
                 <Text style={styles.logoSubText}>x</Text>
               </View>
 
-              <Text style={styles.title}>Sign in to your Account</Text>
+              <Text style={styles.title}>change your password</Text>
               <Text style={styles.subtitle}>
                 sign in and start learning smarter
               </Text>
@@ -212,35 +171,14 @@ export default function LogIn() {
                     styles.submitButton,
                     logLoading && styles.submitButtonDisabled,
                   ]}
-                  onPress={signInWithEmail}
+                  onPress={handleUpdatePassword}
                   disabled={logLoading}
                 >
                   {logLoading ? (
                     <ActivityIndicator color="#fff" />
                   ) : (
-                    <Text style={styles.submitButtonText}>Sign In</Text>
+                    <Text style={styles.submitButtonText}>change password</Text>
                   )}
-                </TouchableOpacity>
-
-                {/* Login Link */}
-                <TouchableOpacity
-                  activeOpacity={1}
-                  style={styles.loginLink}
-                  onPress={() => router.push("/sign-up")}
-                >
-                  <Text style={styles.loginText}>
-                    Already have an account?{" "}
-                    <Text style={styles.loginHighlight}>Sign up</Text>
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  activeOpacity={1}
-                  style={styles.loginLink}
-                  onPress={() => router.push("../(reset)/forget-password")}
-                >
-                  <Text style={styles.loginText}>
-                    <Text style={styles.loginHighlight}>Forget Password</Text>
-                  </Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>

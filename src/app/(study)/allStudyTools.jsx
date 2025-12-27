@@ -39,8 +39,8 @@ const allStudyTools = () => {
     () => [
       { title: "Introduction", icon: "info-circle", color: "#6d4c41", route: "./Introduction" },
       { title: "Read PDF", icon: "book-open", color: "#1976d2", route: "./readingPDF" },
-      { title: "EUEE Exams", icon: "clipboard-check", color: "#388e3c", route: "./EUEE" },
-      { title: "Practice Questions", icon: "pencil-alt", color: "#f57c00", route: "./EUEEPreparations" },
+      { title: "EUEE Past Exams", icon: "clipboard-check", color: "#388e3c", route: "./EUEE" },
+      { title: "EUEE Practice Questions", icon: "pencil-alt", color: "#f57c00", route: "./EUEEPreparation" },
       { title: "Active Recall", icon: "brain", color: "#8e24aa", route: "./activeRecall" },
     ],
     []
