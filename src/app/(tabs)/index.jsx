@@ -5,11 +5,12 @@ import {
   StatusBar,
   ScrollView,
   TouchableOpacity,
+  Platform,
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context"; // provide protected screen
 
 import { LinearGradient } from "expo-linear-gradient";
-import { FontAwesome5, Ionicons  } from "@expo/vector-icons";
+import { FontAwesome5, Ionicons } from "@expo/vector-icons";
 
 import subjects from "../../constants/subjects.js";
 import RenderSubjects from "../../components/RenderSubjects.jsx";
@@ -17,42 +18,53 @@ import RenderingFeaturesCategories from "../../components/RenderingFeaturesCateg
 import featuredCategoriesData from "../../constants/featuredCategoriesData.js";
 
 import GridBackground from "../../services/GridBackground.jsx";
+import BlackGridBackground from "../../services/BlackGridBackground.jsx";
+import * as Animatable from "react-native-animatable";
+
 import { useAuth } from "../../providers/AuthProvider"; // session proiver
-import { useState, useEffect, use } from "react";
+import { useState, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { supabase } from "../../lib/supabase";
 
-import HomeDrawer from "../../providers/HomeDrawer.jsx";
+// import HomeDrawer from "../../providers/HomeDrawer.jsx";
 import { themeAtom } from "../../atoms.jsx";
-import { useAtom, useSetAtom } from "jotai";
-import HomeDraswer from "../../providers/AuthProvider";
+import { useAtom } from "jotai";
 
 export default function Index() {
   // session data
   const { session, loading: authLoading } = useAuth(); // getting session from auth provider using hook
   const [name, setName] = useState("");
   const [theme, setTheme] = useAtom(themeAtom);
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  // const [drawerOpen, setDrawerOpen] = useState(false);
+  
   const colors = {
     light: {
-      backgroundColor: "white",
+      backgroundColor: "#E0F2ED",
       greeting: "#111111",
       welcome: "#006400",
       fidelx: "#FFE100",
-      darkGreen: "#014421",
+      darkGreen: "",
       pageGradient1: "#E0F2ED",
       pageGradient2: "#FFFFFF",
+      pageGradient3: "#E0F2ED",
       moon: "#014421",
+      accent: "#FFE100", // Shared accent for highlights
+      shadow: "", // Default shadow for light mode
+      gridOpacity: 0.05, // For grid backgrounds
     },
     dark: {
-      backgroundColor: "black",
+      backgroundColor: "#0F172A",
       greeting: "#C9D1D9",
       welcome: "#C9D1D9",
       fidelx: "#FFE100",
       darkGreen: "#E5E7EB",
-      pageGradient1: "#0B1220",
-      pageGradient2: "#020617",
+      pageGradient1: "#020617",
+      pageGradient2: "#0f172a",
+      pageGradient3: "#1e3a5f", // Creative deep blue-gray for depth (midnight blue tint)
       moon: "#C9D1D9",
+      accent: "#A5B4FC", // Creative soft purple-gray accent for highlights (e.g., neon-like glow)
+      shadow: "#A5B4FC", // Glowing shadow for creative "ethereal" effect in dark mode
+      gridOpacity: 0.1, // Slightly higher opacity for grids in dark mode to add texture
     },
   };
 
@@ -88,23 +100,31 @@ export default function Index() {
           await AsyncStorage.setItem("username", firstName); // cache it
         }
       } catch (err) {
-        console.log("Error loaindg name", err);
+        console.log("Error loading name", err);
       }
     };
     loadName();
-  }, []);
-
-  console.log("themeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", theme); // color theme
+  }, [session]);
 
   // page header
   const PageHeader = () => (
     <View style={{ flex: 1 }}>
-      <GridBackground size={40} />
+      {theme === "dark" ? (
+        <BlackGridBackground
+          size={40}
+          color={`rgba(165, 180, 252, ${colors[theme].gridOpacity})`}
+        /> // Creative gray-purple tint for grid
+      ) : (
+        <GridBackground size={40} />
+      )}
 
       {/* background grid */}
       <View style={styles.header}>
         <View>
-          <Text
+          <Animatable.Text
+            animation={theme === "dark" ? "fadeInDown" : undefined}
+            duration={600}
+            useNativeDriver={true}
             style={{
               fontWeight: "600",
               fontSize: 24,
@@ -113,7 +133,7 @@ export default function Index() {
             }}
           >
             Hello {name},
-          </Text>
+          </Animatable.Text>
           <Text
             style={{
               fontFamily: "Poppins-ExtraLight",
@@ -138,11 +158,10 @@ export default function Index() {
           <TouchableOpacity
             activeOpacity={0.85}
             onPress={() => {
-              console.log("hellllllllllo");
               setTheme((prev) => (prev === "light" ? "dark" : "light"));
             }}
           >
-            <Ionicons 
+            <Ionicons
               name={theme === "light" ? "sunny" : "moon"}
               size={23}
               color={colors[theme].moon}
@@ -150,21 +169,49 @@ export default function Index() {
             />
           </TouchableOpacity>
           {/* drawer */}
-          <TouchableOpacity>
+          {/* <TouchableOpacity onPress={() => setDrawerOpen(true)}>
             <FontAwesome5
               name="stream"
               size={20}
               color={colors[theme].moon}
               style={{ letterSpacing: 4, paddingTop: 16 }} // small spacing effect
-              // onPress={() => setDrawerOpen(true)}
             />
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </View>
         {/* render drawer */}
-        <HomeDrawer visible={drawerOpen} onClose={() => setDrawerOpen(false)} />
+        {/* <HomeDrawer visible={drawerOpen} onClose={() => setDrawerOpen(false)} /> */}
       </View>
 
       {/* slogan box */}
+
+      {theme==="dark"? 
+       <Animatable.Text
+        animation={theme === "dark" ? "fadeInLeft" : undefined}
+        duration={600}
+        delay={200}
+        useNativeDriver={true}
+        style={{
+          marginTop: 20,
+          marginHorizontal: 17,
+          fontWeight: "600",
+          fontSize: 24,
+          fontFamily: "Poppins-Bold",
+          color: colors[theme].darkGreen,
+          borderColor: theme === "dark" ? "#1E293B" : "white",
+          borderWidth: 5,
+          borderRadius: 16,
+          padding: 15,
+          textAlign: "center",
+          shadowColor: colors[theme].shadow, // Creative shadow glow
+          shadowOpacity: 0,
+          shadowRadius: 4,
+          elevation: 4,
+        }}
+      >
+        Empowering students through smart learning tools.
+      </Animatable.Text> 
+
+      : 
       <Text
         style={{
           alignItems: "center",
@@ -183,6 +230,8 @@ export default function Index() {
       >
         Empowering students through smart learning tools.
       </Text>
+}
+
       <View style={{ overflow: "visible", marginTop: 30 }}>
         <RenderingFeaturesCategories data={featuredCategoriesData} />
       </View>
@@ -199,17 +248,24 @@ export default function Index() {
         }}
       >
         <LinearGradient
-          colors={[colors[theme].pageGradient1, colors[theme].pageGradient2]} // Left to right: light mint green to white
-          start={{ x: 1, y: 0.5 }} // End at right-center (horizontal gradient)
-          end={{ x: 0, y: 0.5 }} // Start at left-center
+          colors={[
+            colors[theme].pageGradient1,
+            colors[theme].pageGradient3,
+            colors[theme].pageGradient2,
+          ]}
+          start={theme === "dark" ? { x: 1, y: 0 } : { x: 1, y: 0 }}
+          end={theme === "dark" ? { x: 0, y: 0 } : { x: 0, y: 0 }}
           style={styles.container}
         >
           {/* status bar */}
-          <StatusBar backgroundColor="white" barStyle="dark-content" />
+          <StatusBar
+            backgroundColor={colors[theme].pageGradient1}
+            barStyle={theme === "dark" ? "light-content" : "dark-content"}
+          />
 
-          <ScrollView>
+          <ScrollView nestedScrollEnabled={true}>
             {/* page header */}
-            <PageHeader style={{ flex: 1 }} />
+            <PageHeader />
 
             {/* natural science bar */}
             <View
@@ -223,7 +279,8 @@ export default function Index() {
             >
               <View
                 style={{
-                  backgroundColor: "#FFE100",
+                  backgroundColor:
+                    theme === "dark" ? colors[theme].accent : "#FFE100", // Creative accent for bar
                   width: 6,
                   height: 23,
                   marginRight: 10,
@@ -253,15 +310,22 @@ export default function Index() {
             >
               <View
                 style={{
-                  backgroundColor: "#FFE100",
+                  backgroundColor:
+                    theme === "dark" ? colors[theme].accent : "#FFE100", // Creative accent for bar
                   width: 6,
                   height: 23,
                   marginRight: 10,
                   borderRadius: 24,
                 }}
               ></View>
-              <GridBackground size={40} />
-
+              {theme === "dark" ? (
+                <BlackGridBackground
+                  size={40}
+                  color={`rgba(165, 180, 252, ${colors[theme].gridOpacity})`}
+                /> // Creative tint
+              ) : (
+                <GridBackground size={40} />
+              )}
               <Text
                 style={{
                   fontFamily: "Poppins-Bold",
@@ -285,13 +349,22 @@ export default function Index() {
             >
               <View
                 style={{
-                  backgroundColor: "#FFE100",
+                  backgroundColor:
+                    theme === "dark" ? colors[theme].accent : "#FFE100", // Creative accent for bar
                   width: 6,
                   height: 23,
                   marginRight: 10,
                   borderRadius: 24,
                 }}
               ></View>
+              {theme === "dark" ? (
+                <BlackGridBackground
+                  size={40}
+                  color={`rgba(165, 180, 252, ${colors[theme].gridOpacity})`}
+                /> // Creative tint
+              ) : (
+                <GridBackground size={40} />
+              )}
               <Text
                 style={{
                   fontFamily: "Poppins-Bold",
@@ -315,25 +388,10 @@ export default function Index() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginHorizontal: 16,
-  },
-  sloganBox: {
-    alignSelf: "center",
-    flex: 1,
-    borderRadius: 20,
-  },
-  shadowBox: {
-    width: "95%",
-    height: 125,
-    backgroundColor: "white",
-    marginHorizontal: 10,
-    borderRadius: 20,
-    marginTop: 10,
   },
 });

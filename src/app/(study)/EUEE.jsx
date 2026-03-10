@@ -36,35 +36,33 @@ const RightAway = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const loadOfflineQuiz = async () => {
+    if (!content?.preparationUri) {
+      setError("No quiz data. Please download content first.");
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const fileContent = await FileSystem.readAsStringAsync(content.eueeUri);
+      const data = JSON.parse(fileContent);
+      const questions = Array.isArray(data) ? data : data.questions || [];
+
+      if (questions.length === 0) {
+        setError("No questions found in file.");
+      } else {
+        setQuiz(questions);
+        console.log(`Loaded ${questions.length} preparation questions!`);
+      }
+      setIsLoading(false);
+    } catch (err) {
+      console.log("Read error:", err);
+      setError("Failed to load quiz. Try re-downloading.");
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const loadOfflineQuiz = async () => {
-      if (!content?.preparationUri) {
-        setError("No quiz data. Please download content first.");
-        setIsLoading(false);
-        return;
-      }
-
-      try {
-        const fileContent = await FileSystem.readAsStringAsync(
-          content.eueeUri
-        );
-        const data = JSON.parse(fileContent);
-        const questions = Array.isArray(data) ? data : data.questions || [];
-
-        if (questions.length === 0) {
-          setError("No questions found in file.");
-        } else {
-          setQuiz(questions);
-          console.log(`Loaded ${questions.length} preparation questions!`);
-        }
-        setIsLoading(false);
-      } catch (err) {
-        console.log("Read error:", err);
-        setError("Failed to load quiz. Try re-downloading.");
-        setIsLoading(false);
-      }
-    };
-
     loadOfflineQuiz();
   }, [content?.preparationUri]);
 
@@ -79,7 +77,7 @@ const RightAway = () => {
     };
     const backHandler = BackHandler.addEventListener(
       "hardwareBackPress",
-      backAction
+      backAction,
     );
     return () => backHandler.remove();
   }, []);
@@ -133,7 +131,7 @@ const RightAway = () => {
             <Text style={styles.errorText}>{error}</Text>
             <TouchableOpacity
               style={styles.retryBtn}
-              onPress={() => window.location.reload()}
+              onPress={loadOfflineQuiz}
             >
               <Text style={styles.retryText}>Try Again</Text>
             </TouchableOpacity>

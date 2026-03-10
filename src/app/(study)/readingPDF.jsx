@@ -1,21 +1,20 @@
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useAtom } from "jotai";
 import * as FileSystem from "expo-file-system";
+// import * as ScreenOrientation from "expo-screen-orientation";
+
 // ----------------------------------------------------
 import { selectedSubjectSpecificContent } from "../../atoms";
 import { useState, useEffect, useCallback } from "react";
-import { WebView } from "react-native-webview";
+import PDFView from "react-native-pdf";
 
-const readingPDF = () => {
+const ReadingPDF = () => {
   const [content] = useAtom(selectedSubjectSpecificContent);
 
   // Set isLoading to true initially, or until the check is done.
   const [pdfSource, setPdfSource] = useState(null);
   const [isLoading, setIsLoading] = useState(true); // <-- Initialize to true
   const [error, setError] = useState(null);
-  const [theme, setTheme] = useState("light");
-  const [showBar, setShowBar] = useState(true);
-  const pdfName = "PDF Document";
 
   // Define loadOfflinePdf using useCallback to ensure stable function reference
   const loadOfflinePdf = useCallback(async () => {
@@ -48,9 +47,22 @@ const readingPDF = () => {
     loadOfflinePdf();
   }, [loadOfflinePdf]); // Dependency on the stable function reference
 
-  const handleScreenPress = () => {
-    setShowBar(!showBar);
-  };
+  // allowing Auto-Rotate for this screen only
+  // useEffect(() => {
+  //   const enableAutoRotate = async () => {
+  //     await ScreenOrientation.unlockAsync(); 
+  //     // This allows portrait + landscape
+  //   };
+
+  //   enableAutoRotate();
+
+  //   // When leaving screen → lock back to portrait
+  //   return () => {
+  //     ScreenOrientation.lockAsync(
+  //       ScreenOrientation.OrientationLock.PORTRAIT
+  //     );
+  //   };
+  // }, []);
 
   // ------------------------------------------------------------------
   if (error) {
@@ -72,41 +84,25 @@ const readingPDF = () => {
   // ------------------------------------------------------------------
 
   return (
-    <TouchableOpacity
-      style={{ flex: 1 }}
-      onPress={handleScreenPress}
-      activeOpacity={1}
-    >
-      {/* Top Bar for controls */}
-      {showBar && (
-        <View style={styles.topBar}>
-          <Text style={styles.pdfName}>{pdfName}</Text>
-          <TouchableOpacity
-            style={styles.button}
-            onPress={() => setTheme(theme === "light" ? "dark" : "light")}
-          >
-            <Text style={styles.buttonText}>
-              {theme === "light" ? "Dark Mode" : "Light Mode"}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      )}
+    <>
 
       {/* PDF Viewer */}
-      <WebView
-        source={{ uri: pdfSource }} // Just the file:// URI
+      <PDFView
+        source={{ uri: pdfSource, cache: true }}
         style={{ flex: 1 }}
-        originWhitelist={["file://"]} // Important for security
-        allowFileAccess={true}
-        allowUniversalAccessFromFileURLs={true}
-        allowFileAccessFromFileURLs={true}
-        mixedContentMode="compatibility" // Helps on Android
+        onLoadComplete={(numberOfPages, filePath) => {
+          console.log(`Loaded PDF with ${numberOfPages} pages`);
+        }}
+        onError={(error) => {
+          console.log(error);
+        }}
       />
-    </TouchableOpacity>
+    </>
   );
 };
 
-export default readingPDF;
+
+export default ReadingPDF;
 
 const styles = StyleSheet.create({
   // ... (Your existing styles) ...

@@ -6,27 +6,32 @@ import {
   TouchableOpacity,
   Platform,
   StyleSheet,
-  Linking
+  Linking,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useState } from "react";
 import { router } from "expo-router";
+import { themeAtom } from "../atoms.jsx";
+import { useAtom } from "jotai";
 
-const TrendingItem = ({  item }) => {
-  const TELEGRAM_LINK="https://t.me/reggae_music_collection";
+const TrendingItem = ({ item }) => {
+  const TELEGRAM_LINK = "https://t.me/fidelx1";
+  const [theme, setTheme] = useAtom(themeAtom);
+  
   return (
     <View style={{ marginHorizontal: 8, backgroundColor: "transparent" }}>
-      <TouchableOpacity 
-          activeOpacity={1} style={{flex:1}} 
-          onPress={()=>{item.id!=='telegram'?(router.push(`/${item.id}`)):(Linking.openURL(TELEGRAM_LINK).catch(() => alert("Telegram not installed")))}}>
+      <TouchableOpacity
+        activeOpacity={1}
+        style={{ flex: 1 }}
+        onPress={() => {item.id !== "telegram"
+            ? router.push(`/${item.id}`)
+            : Linking.openURL(TELEGRAM_LINK).catch(() =>
+                alert("Telegram not installed")
+              );
+        }}
+      >
         <LinearGradient
-          colors={[
-            item.colors[0],
-            item.colors[1],
-            item.colors[2],
-            item.colors[3],
-            item.colors[4],
-          ]}
+          colors={theme === "dark" ? ["#1E243B", "#1E243B"] : [item.colors[0], item.colors[1], item.colors[2], item.colors[3], item.colors[4],]}
           style={styles.contents}
         >
           <Image
@@ -39,6 +44,7 @@ const TrendingItem = ({  item }) => {
             }}
             resizeMode="cover"
           />
+
           <Text style={{ fontFamily: "Poppins-Bold" }}>{item.text}</Text>
         </LinearGradient>
       </TouchableOpacity>
@@ -47,16 +53,13 @@ const TrendingItem = ({  item }) => {
 };
 
 const RenderingFeaturesCategories = ({ data }) => {
-
   return (
     <FlatList
       data={data}
       keyExtractor={(item) => item.$id} // ✅ now works because $id exists
       showsHorizontalScrollIndicator={false}
       horizontal
-      renderItem={({ item }) => (
-        <TrendingItem item={item} />
-      )}
+      renderItem={({ item }) => <TrendingItem item={item} />}
     />
   );
 };
@@ -83,4 +86,3 @@ const styles = StyleSheet.create({
     }),
   },
 });
-

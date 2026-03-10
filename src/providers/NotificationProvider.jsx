@@ -8,8 +8,8 @@ import { useRouter } from 'expo-router';
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
-    shouldPlaySound: false,
-    shouldSetBadge: false,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
   }),
 });
 
@@ -25,7 +25,6 @@ const NotificationProvider = ({ children }) => {
     if (!session?.id || !newToken) return;
 
     setExpoPushToken(newToken);
-
     // 1. Get user's existing token
     const { data, error } = await supabase
       .from('profile')
@@ -34,21 +33,19 @@ const NotificationProvider = ({ children }) => {
       .single();
 
     if (error) {
-      console.log('Error checking existing token:', error);
       return;
     }
 
     const existingToken = data?.expo_push_token;
+    console.log(existingToken)
 
     // 2. Only update if different
     if (existingToken !== newToken) {
-      console.log('Updating token in database...');
       await supabase
         .from('profile')
         .update({ expo_push_token: newToken })
         .eq('id', session.id);
     } else {
-      console.log('Token already up to date — no DB write');
     }
   };
 
@@ -57,16 +54,13 @@ const NotificationProvider = ({ children }) => {
 
     notificationListener.current =
       Notifications.addNotificationReceivedListener((notification) => {
-        console.log("Notification received:", notification);
       });
 
     responseListener.current =
       Notifications.addNotificationResponseReceivedListener((response) => {
         const data = response.notification.request.content.data;
-        console.log('Notification tapped with data:', data);
-
         if (data?.screen) {
-          router.push(data.screen);
+          router.push('/');
         } else {
           router.push('/');
         }
@@ -74,13 +68,13 @@ const NotificationProvider = ({ children }) => {
 
     return () => {
       if (notificationListener.current) {
-        Notifications.subscription.remove()(notificationListener.current);
+        Notifications.current?.remove();
       }
       if (responseListener.current) {
-        Notifications.subscription.remove()(responseListener.current);
+        Notifications.current?.remove();
       }
     };
-  }, []);
+  }, [session, expoPushToken]);
 
   return <>{children}</>;
 };

@@ -28,7 +28,7 @@ import Animated, {
 } from "react-native-reanimated";
 
 import * as FileSystem from "expo-file-system";
-import { Svg, Circle, G } from "react-native-svg";
+import { Svg, Circle, G, Text as SvgText } from "react-native-svg";
 
 const Topics = () => {
   const router = useRouter();
@@ -47,7 +47,7 @@ const Topics = () => {
       { name: "Economics", icon: "chart-line", color: "#f9a825" },
       { name: "SAT", icon: "book", color: "#388e3c" },
     ],
-    []
+    [],
   );
 
   // session data states
@@ -57,7 +57,7 @@ const Topics = () => {
   // selected subject states
   const [selectedSubjectValue] = useAtom(selectedSubject); //eg. biology
   const setSelectedSubjectSpecificContent = useSetAtom(
-    selectedSubjectSpecificContent
+    selectedSubjectSpecificContent,
   ); //eg. genetics
   const subject = selectedSubjectValue[0]?.subjectCode;
   const subjectMatch = subjectIcons.find((s) => s.name === subject); // subjectIcons[0];
@@ -245,32 +245,58 @@ const Topics = () => {
 
   /*********** Download from supabase + save to device */
   // Download PDF with resume support
-  const downloadPdf = async (url, localName) => {
-    // Fetch the private file data using the Supabase SDK
-    const { data, error } = supabase.storage
-      .from(FILE) // e.g. 'biology'
-      .getPublicUrl(url);
-    console.log("errrrrrrrrrrrrr", error);
-    if (error || !data?.publicUrl) throw new Error("Can't get public URL");
-    const publicUrl = data.publicUrl;
-    console.log("publicUrl", publicUrl);
-    await FileSystem.downloadAsync(publicUrl, getFileUri(localName + ".pdf"));
+  // const downloadPdf = async (url, localName) => {
+  //   // Fetch the private file data using the Supabase SDK
+  //   const { data, error } = supabase.storage
+  //     .from(FILE) // e.g. 'biology'
+  //     .getPublicUrl(url);
+  //   console.log("errrrrrrrrrrrrr", error);
+  //   if (error || !data?.publicUrl) throw new Error("Can't get public URL");
+  //   const publicUrl = data.publicUrl;
+  //   console.log("publicUrl", publicUrl);
+  //   await FileSystem.downloadAsync(publicUrl, getFileUri(localName + ".pdf"));
 
-    // const {data, error} = await supabase.storage
-    // .from(FILE)
-    // .download(url)
+  //   // const {data, error} = await supabase.storage
+  //   // .from(FILE)
+  //   // .download(url)
 
-    // if(error) throw error;
+  //   // if(error) throw error;
 
-    // const blobToBase64 = (blob)=>
-    //   new promise((resolve,reject)=>{
-    //     const reader new FileReader();
-    //     reader.onloadend =()=>{
-    //       const base64data= reader.result.split(','[1];
-    //         resolve(base64data);
-    //       )
-    //     }
-    //   })
+  //   // const blobToBase64 = (blob)=>
+  //   //   new promise((resolve,reject)=>{
+  //   //     const reader new FileReader();
+  //   //     reader.onloadend =()=>{
+  //   //       const base64data= reader.result.split(','[1];
+  //   //         resolve(base64data);
+  //   //       )
+  //   //     }
+  //   //   })
+  // };
+
+  /************** Downlaod from supabse private bucket wiht signed URLs ******************/
+  const downloadPdf = async (pathInBucket, localName) => {
+    try {
+      // 1. Request a temporary "Signed URL" (valid for 60 seconds)
+      // This triggers your 'is_active_profile' SQL policy!
+      const { data, error } = await supabase.storage
+        .from(FILE) // e.g., 'geography'
+        .createSignedUrl(pathInBucket, 600);
+
+      if (error) throw error;
+      if (!data?.signedUrl) throw new Error("Could not generate signed URL");
+
+      const signedUrl = data.signedUrl;
+      const fileUri = getFileUri(localName + ".pdf");
+
+      // 2. Download the file using the temporary link
+      const downloadResult = await FileSystem.downloadAsync(signedUrl, fileUri);
+
+      console.log("Finished downloading to:", downloadResult.uri);
+      return downloadResult.uri;
+    } catch (err) {
+      console.error("Download Error:", err.message);
+      throw err;
+    }
   };
 
   // Download JSON from Supabase table
@@ -281,14 +307,13 @@ const Topics = () => {
     const jsonString = JSON.stringify(data);
     await FileSystem.writeAsStringAsync(
       getFileUri(table + ".json"),
-      jsonString
+      jsonString,
     );
   };
 
   // handle card press
   const handleCardPress = (checkID) => {
     if (!Status) {
-      router.push("../../(payment)/mainPayment");
     } else if (allDownloaded[checkID]) {
       router.push("../../(study)/allStudyTools");
       loadAllContentIntoMemory(checkID); // preapre all the files path and pass to next pages.
@@ -316,8 +341,8 @@ const Topics = () => {
           .single();
 
         if (!error && data) {
-          setStatus(data.status);
-          await AsyncStorage.setItem("status", JSON.stringify(data.status)); // cache it
+          setStatus(!data.status);
+          await AsyncStorage.setItem("status", JSON.stringify(!data.status)); // cache it
         }
         // check downloaded files
         checkAllFilesDownloaded();
@@ -414,22 +439,21 @@ const Topics = () => {
                   />
                 </G>
                 {/* Centered Text */}
-                <Text
-                  x={40}
-                  y={40}
-                  fontSize={12}
+                <SvgText
+                  x="40"
+                  y="40"
+                  fontSize="12"
+                  fontWeight="bold"
                   fill={theme === "light" ? "#333" : "white"}
                   textAnchor="middle"
-                  dominantBaseline="middle"
+                  alignmentBaseline="central"
                 >
-                  {Math.round(itemProgress * 100)}%
-                </Text>
+                  {`${Math.round(itemProgress * 100)}%`}
+                </SvgText>
               </Svg>
             ) : !Status ? (
               <FontAwesome5 name="lock" size={22} color="#9ca3af" />
-            ) : isDownloaded ? (
-              <FontAwesome5 name="check-circle" size={28} color="#4CAF50" />
-            ) : (
+            ) : isDownloaded ? null : (
               <FontAwesome5
                 name="cloud-download-alt"
                 size={24}

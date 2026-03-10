@@ -9,6 +9,7 @@ import { useAtom } from "jotai";
 import Modal from "react-native-modal";
 import Svg, { Circle } from "react-native-svg";
 import { supabase } from "../../lib/supabase.ts";
+import * as FileSystem from "expo-file-system";
 
 import { selectedExamsSubject } from "../../atoms";
 import { selectedSpecificTime } from "../../atoms";
@@ -19,8 +20,10 @@ import { useQueryClient } from "@tanstack/react-query";
 import { selectedExamSpecifc } from "../../atoms";
 import LoadingScreen from "../../services/LoadingScreen.jsx";
 import ErrorScreen from "../../services/ErrorScreen.jsx";
+import { selectedSubjectSpecificContent } from "../../atoms";
+import {generateGeminiResponse} from "../../API/SupabaseGeminiConfig.js"
 
-const RightAway = () => {
+const AptitudeRightAway = () => {
   const queryClient = useQueryClient();
   const [selectedExam] = useAtom(selectedExamsSubject);
   const [selectedSpecifc] = useAtom(selectedExamSpecifc);
@@ -28,25 +31,77 @@ const RightAway = () => {
   const tableName = selectedSpecifc; // e.g. "biology_2014"
   const totalTime = selectedTime;
 
-  const [questionNumber, setQuestionNumber] = useState(null);
   const [selectedOptions, setSelectedOptions] = useState({});
   const [answersCorrect, setAnswersCorrect] = useState({});
   const [expandedQuestions, setExpandedQuestions] = useState({});
-  const [timeLeft, setTimeLeft] = useState(100); // 60 seconds
+  const [timeLeft, setTimeLeft] = useState(totalTime); // 60 seconds
   const [score, setScore] = useState(0);
   const [showTime, setShowTime] = useState(false);
   const [visible, setVisisble] = useState(false);
   const [finish, setFinish] = useState(false);
 
+// downloaded file path states
+  const [content] = useAtom(selectedSubjectSpecificContent);
+  const [isContentLoading, setIsContentLoading] = useState(true)
+  const [quiz, setQuiz] = useState([]);
+  const [error, setError] = useState(null);
+
+    const loadOfflineQuiz = async () => {
+      if (!content) {
+        setError("No exams found. Please download content first.");
+        setIsContentLoading(false);
+        return;
+      }
+  
+      try {
+        // FIXED: DO NOT ADD ".json" AGAIN — IT'S ALREADY THERE!
+        const fileInfo = await FileSystem.getInfoAsync(content);
+        if (!fileInfo.exists) {
+          console.log("File does NOT exist at path:");
+          setError("Exam file missing. Please re-download the topic.");
+          setIsContentLoading(false);
+          return;
+        }
+
+        setIsContentLoading(true);
+        const fileContent = await FileSystem.readAsStringAsync(
+          content
+        );
+        const data = JSON.parse(fileContent);
+        
+        // Support both formats: { questions: [...] } or direct array
+        const questions = Array.isArray(data)
+          ? data
+          : data.questions || data.items || [];
+  
+        if (questions.length === 0) {
+          setError("No questions in file. Try re-downloading.");
+        } else {
+          setQuiz(questions);
+        }
+        setIsContentLoading(false);
+      } catch (err) {
+        console.log("Read error:", err);
+        setError("Failed to load exam. Try re-downloading content.");
+        setIsContentLoading(false);
+      }
+    };
+  
+    useEffect(() => {
+      loadOfflineQuiz();
+    }, [content]);
+
   // fetching the data from supabase
-  const getExamQuestions = async (tableName) => {
-    const { data, error } = await supabase.from(tableName).select("*");
-    if (error) throw error;
-    return data;
-  };
+  // const getExamQuestions = async (tableName) => {
+  //   const { data, error } = await supabase.from(tableName).select("*");
+  //   if (error) throw error;
+  //   return data;
+  // };
 
   // count down time
   useEffect(() => {
+    setTimeLeft(totalTime);
+
     if (timeLeft === 0) {
       setVisisble(true);
       return;
@@ -57,21 +112,14 @@ const RightAway = () => {
     }, 1000);
 
     return () => clearInterval(interval); // cleanup
-  }, [timeLeft]);
-
-  // setting time once
-  // useEffect(()=>{
-  //    setTimeLeft(totalTime);
-  // },[])
+  }, [timeLeft, totalTime]);
 
   const formatTime = (secs) => {
     const hours = Math.floor(secs / 3600);
     const minutes = Math.floor((secs % 3600) / 60);
     const seconds = secs % 60;
 
-    return `${hours}:${minutes.toString().padStart(2, "0")}:${seconds
-      .toString()
-      .padStart(2, "0")}`;
+    return `${hours}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
   };
 
   // explanation toggle
@@ -89,8 +137,8 @@ const RightAway = () => {
     }));
     const selectedQuestion = quiz.find((r) => r.id === questionIndex);
     const isAnswerCorrect = selectedQuestion.correctAnswer === optionIndex;
-    {
-      isAnswerCorrect && setScore((prev) => prev + 1);
+    if (isAnswerCorrect) {
+      setScore((prev) => prev + 1);
     }
 
     setAnswersCorrect((prev) => ({
@@ -102,7 +150,7 @@ const RightAway = () => {
   // preventing accidental touch of back button
   useEffect(() => {
     const backAction = () => {
-      Alert.alert("Hold on, ", "Are you sure you want to go back?", [
+      Alert.alert("Hold on!", "Are you sure you want to go back?", [
         {
           text: "Cancel",
           onPress: () => null,
@@ -115,7 +163,7 @@ const RightAway = () => {
 
     const backHandler = BackHandler.addEventListener(
       "hardwareBackPress",
-      backAction
+      backAction,
     );
 
     return () => backHandler.remove();
@@ -158,42 +206,47 @@ const RightAway = () => {
   };
 
   // getting the exam from supabase database
-  console.log("Selected table:", tableName);
+  // console.log("Selected table:", tableName);
 
-  const {
-    data: quiz,
-    isLoading,
-    error,
-  } = useQuery({
-    queryKey: ["examQuestions", tableName],
-    queryFn: () => getExamQuestions(tableName),
-  });
+  // const {
+  //   data: quiz,
+  //   isLoading,
+  //   error,
+  // } = useQuery({
+  //   queryKey: ["examQuestions", tableName],
+  //   queryFn: () => getExamQuestions(tableName),
+  // });
 
-  // Function to retry the query
-  const handleRetry = () => {
-    queryClient.invalidateQueries(["examQuestions", tableName]);
-  };
+  // // Function to retry the query
+  // const handleRetry = () => {
+  //   queryClient.invalidateQueries(["examQuestions", tableName]);
+  // };
 
-  if (isLoading) {
-    return <LoadingScreen />;
-  }
+  // if (isLoading) {
+  //   return <LoadingScreen />;
+  // }
 
-  if (error) {
-    return (
-      <ErrorScreen
-        errorMessage={error.message || "failed to load exam question"}
-        onRetry={handleRetry}
-      />
-    );
-  }
+  // if (error) {
+  //   return (
+  //     <ErrorScreen
+  //       errorMessage={error.message || "failed to load exam question"}
+  //       onRetry={handleRetry}
+  //     />
+  //   );
+  // }
 
-  if (!quiz) {
-    return <Text>No quiz data found.</Text>;
-  }
+  // if (!quiz) {
+  //   return <Text>No quiz data found.</Text>;
+  // }
+
+  // handle loading screen
+  if (isContentLoading) return <LoadingScreen />;
+
 
   // create a fuction which parse ** ** markdown bold
   const renderBoldText = (text) => {
-    const parts = text.split(/(\*\*.*?\*\*)/g);
+    const str = typeof text === "string" ? text : "";
+    const parts = str.split(/(\*\*.*?\*\*)/g);
 
     return (
       <Text>
@@ -211,155 +264,278 @@ const RightAway = () => {
     );
   };
 
+  // Function to parse potential JSON in passage text
+  const parsePassageText = (text) => {
+    if (
+      typeof text === "string" &&
+      text.startsWith("[") &&
+      text.endsWith("]")
+    ) {
+      try {
+        return JSON.parse(text);
+      } catch (e) {
+        console.error("Failed to parse passage JSON:", e);
+        return [text]; // fallback to original text as array
+      }
+    }
+    return [text]; // return as array for consistent mapping
+  };
+
   /********************************  renderingContentQuestions ******************************************/
-  const renderConentQuestions = (content, index, instruction) =>
-    content.map((item, index) => (
-      <View>
+  const renderContentQuestions = (
+    content,
+    sectionTitle = "",
+    instruction = "",
+  ) => (
+    <View>
+      {sectionTitle && (
         <View style={styles.quizBox}>
-          <View style={styles.question}>
-            <Text style={{ fontFamily: "Poppins-Medium" }}>
-              {index + 1}. {renderBoldText(item.question)}
-            </Text>
-          </View>
-          {item.options.map((option, optionIndex) => (
-            <View
-              key={optionIndex}
-              style={[
-                styles.option,
-                {
-                  backgroundColor: getOptionColor(item.id, optionIndex, item),
-                },
-              ]}
-            >
-              <TouchableOpacity
-                style={{ flex: 1 }}
-                onPress={() => {
-                  handleOptionPress(item.id, optionIndex);
-                }}
-                activeOpacity={0.7}
-                disabled={selectedOptions[item.id] !== undefined || finish}
-              >
-                <Text style={{ fontFamily: "Poppins-Medium" }}>{option}</Text>
-              </TouchableOpacity>
-            </View>
-          ))}
-
-          {/* explanation toggle */}
-
-          {selectedOptions[item.id] !== undefined && (
-            <>
-              <View
-                style={{
-                  flex: 1,
-                  flexDirection: "row",
-                  marginTop: 7,
-                  alignItems: "center",
-                }}
-              >
-                <TouchableOpacity onPress={() => toggleExpand(item.id)}>
-                  <Text style={{ fontFamily: "Poppins-Black" }}>
-                    Explanation
-                  </Text>
-                </TouchableOpacity>
-                <Ionicons
-                  name={
-                    expandedQuestions[item.id] ? "chevron-up" : "chevron-down"
-                  }
-                  size={20}
-                  color="#333"
-                />
-              </View>
-              {expandedQuestions[item.id] && (
-                <View>
-                  <Text style={{ fontFamily: "Poppins-Light" }}>
-                    {item.explanation}
-                  </Text>
-                </View>
-              )}
-            </>
-          )}
+          <Text
+            style={{
+              fontFamily: "Poppins-Bold",
+              fontSize: 18,
+              marginBottom: 10,
+            }}
+          >
+            {sectionTitle}
+          </Text>
+          <Text style={{ fontFamily: "Regular" }}>
+            <Text style={{ fontWeight: "bold" }}>Instruction: </Text>
+            {instruction}
+          </Text>
         </View>
-      </View>
-    ));
+      )}
+      {content.map((item, index) => (
+        <View key={item.id || index}>
+          <View style={styles.quizBox}>
+            <View style={styles.question}>
+              <Text style={{ fontFamily: "Poppins-Medium" }}>
+                {index + 1}. {renderBoldText(item.question)}
+              </Text>
+            </View>
+            {item.options.map((option, optionIndex) => (
+              <View
+                key={optionIndex}
+                style={[
+                  styles.option,
+                  {
+                    backgroundColor: getOptionColor(item.id, optionIndex, item),
+                  },
+                ]}
+              >
+                <TouchableOpacity
+                  style={{ flex: 1 }}
+                  onPress={() => {
+                    handleOptionPress(item.id, optionIndex);
+                  }}
+                  activeOpacity={0.7}
+                  disabled={selectedOptions[item.id] !== undefined || finish}
+                >
+                  <Text style={{ fontFamily: "Poppins-Medium" }}>{option}</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+
+            {/* explanation toggle */}
+
+            {selectedOptions[item.id] !== undefined && (
+              <>
+                <View
+                  style={{
+                    flex: 1,
+                    flexDirection: "row",
+                    marginTop: 7,
+                    alignItems: "center",
+                  }}
+                >
+                  <TouchableOpacity onPress={() => toggleExpand(item.id)}>
+                    <Text style={{ fontFamily: "Poppins-Black" }}>
+                      Explanation
+                    </Text>
+                  </TouchableOpacity>
+                  <Ionicons
+                    name={
+                      expandedQuestions[item.id] ? "chevron-up" : "chevron-down"
+                    }
+                    size={20}
+                    color="#333"
+                  />
+                </View>
+                {expandedQuestions[item.id] && (
+                  <View>
+                    <Text style={{ fontFamily: "Poppins-Light" }}>
+                      {item.explanation}
+                    </Text>
+                  </View>
+                )}
+              </>
+            )}
+          </View>
+        </View>
+      ))}
+    </View>
+  );
 
   /****************************** Define rendering functions for each type *******************************/
   const renderers = {
     /*********************** passage 1 ***************************/
-    passage1: (content, contentIndex) =>
-      content.map((item, index) => (
-        <View style={{ flex: 1 }}>
-          {/* instruction */}
-          <View style={styles.quizBox}>
-            <Text style={{ fontFamily: "Regular" }}>
-              <Text style={{ fontWeight: "bold" }}>Instuction: </Text>
-              Below are the reading passage. Read each passage carefully and
-              asnswer the questions. each item has four choices. choolse the
-              best alternative.
-            </Text>
-          </View>
-          <View key={index} style={styles.quizBox}>
-            <Text style={{ fontFamily: "Poppins-Medium" }}>
-              {index + 1}. {item}
-            </Text>
-          </View>
+    passage1: (content) => (
+      <View style={{ flex: 1 }}>
+        {/* instruction */}
+        <View style={styles.quizBox}>
+          <Text style={{ fontFamily: "Regular" }}>
+            <Text style={{ fontWeight: "bold" }}>Instruction: </Text>
+            Below is the reading passage. Read each passage carefully and answer
+            the questions. each item has four choices. choose the best
+            alternative.
+          </Text>
         </View>
-      )),
+        <View style={styles.quizBox}>
+          {content.map((item, index) => (
+            <Text key={index} style={{ fontFamily: "Poppins-Medium" }}>
+              {renderBoldText(item.question || item)}
+            </Text>
+          ))}
+        </View>
+      </View>
+    ),
 
     /*********************** passage question 1 ***************************/
-    passageQ1: (contents) => renderConentQuestions(contents),
+    passageQ1: (content) =>
+      renderContentQuestions(
+        content,
+        "Passage 1 Questions",
+        "Answer the questions based on the passage above.",
+      ),
 
     /*********************** passage 2 ***************************/
-    passage2: (content, contentIndex) =>
-      content.map((item, index) => (
-        <View style={{ flex: 1 }}>
-          {/* instruction */}
-          <View style={styles.quizBox}>
-            <Text style={{ fontFamily: "Regular" }}>
-              <Text style={{ fontWeight: "bold" }}>Instuction: </Text>
-              Below are the reading passage. Read each passage carefully and
-              asnswer the questions. each item has four choices. choolse the
-              best alternative.
-            </Text>
-          </View>
-          <View key={index} style={styles.quizBox}>
-            <Text style={{ fontFamily: "Poppins-Medium" }}>
-              {index + 1}. {item}
-            </Text>
-          </View>
+    passage2: (content) => (
+      <View style={{ flex: 1 }}>
+        {/* instruction */}
+        <View style={styles.quizBox}>
+          <Text style={{ fontFamily: "Regular" }}>
+            <Text style={{ fontWeight: "bold" }}>Instruction: </Text>
+            Below is the reading passage. Read each passage carefully and answer
+            the questions. each item has four choices. choose the best
+            alternative.
+          </Text>
         </View>
-      )),
-
-    /*********************** passage question 1 ***************************/
-    passageQ1: (contents) => renderConentQuestions(contents),
+        <View style={styles.quizBox}>
+          {content.map((item, index) => (
+            <Text key={index} style={{ fontFamily: "Poppins-Medium" }}>
+              {renderBoldText(item.question || item)}
+            </Text>
+          ))}
+        </View>
+      </View>
+    ),
 
     /*********************** passage question 2 ***************************/
-    passageQ2: (contents) => renderConentQuestions(contents),
+    passageQ2: (content) =>
+      renderContentQuestions(
+        content,
+        "Passage 2 Questions",
+        "Answer the questions based on the passage above.",
+      ),
 
     /*********************** paragraph comprehension  ***************************/
-    paragraph_comprehension: (contents) => renderConentQuestions(contents),
+    paragraph_comprehension: (content) =>
+      renderContentQuestions(
+        content,
+        "Paragraph Comprehension",
+        "Read the paragraph and choose the best answer.",
+      ),
 
     /*********************** logical ***************************/
-    logical: (contents) => renderConentQuestions(contents),
+    logical: (content) =>
+      renderContentQuestions(
+        content,
+        "Logical Reasoning",
+        "Choose the logically correct option.",
+      ),
 
     /*********************** analogy  ***************************/
-    analogy: (contents) => analogy(contents),
+    analogy: (content) =>
+      renderContentQuestions(
+        content,
+        "Analogy",
+        "Choose the best analogous pair.",
+      ),
 
     /*********************** unique  ***************************/
-    unique: (contents) => renderConentQuestions(contents),
+    unique: (content) =>
+      renderContentQuestions(
+        content,
+        "Odd One Out",
+        "Identify the item that does not belong.",
+      ),
 
     /*********************** synonym  ***************************/
-    synonym: (contents) => renderConentQuestions(contents),
+    synonym: (content) =>
+      renderContentQuestions(
+        content,
+        "Synonyms",
+        "Choose the word with similar meaning.",
+      ),
 
     /*********************** antonym  ***************************/
-    antonym: (contents) => renderConentQuestions(contents),
+    antonym: (content) =>
+      renderContentQuestions(
+        content,
+        "Antonyms",
+        "Choose the word with opposite meaning.",
+      ),
 
     /*********************** maths  ***************************/
-    mahts: (contents) => renderConentQuestions(contents),
+    maths: (content) =>
+      renderContentQuestions(
+        content,
+        "Mathematics",
+        "Solve the mathematical problem and choose the correct answer.",
+      ),
 
     /*********************** sentence completion ***************************/
-    sentence_completion: (contents) => renderConentQuestions(contents),
-
+    sentence_completion: (content) =>
+      renderContentQuestions(
+        content,
+        "Sentence Completion",
+        "Choose the best word or phrase to complete the sentence.",
+      ),
   };
+
+  // Filter all groups once, outside of any render loop
+  const passage1 = quiz.filter((r) => r.type === "passage1");
+  const passageQ1 = quiz.filter((r) => r.type === "passageQ1");
+  const passage2 = quiz.filter((r) => r.type === "passage2");
+  const passageQ2 = quiz.filter((r) => r.type === "passageQ2");
+  const paragraph_comprehension = quiz.filter(
+    (r) => r.type === "paragraph_comprehension",
+  );
+  const logical = quiz.filter((r) => r.type === "logical");
+  const analogy = quiz.filter((r) => r.type === "analogy");
+  const unique = quiz.filter((r) => r.type === "unique");
+  const synonym = quiz.filter((r) => r.type === "synonym");
+  const antonym = quiz.filter((r) => r.type === "antonym");
+  const maths = quiz.filter((r) => r.type === "maths");
+  const sentence_completion = quiz.filter(
+    (r) => r.type === "sentence_completion",
+  );
+
+  // Define the order of sections/topics to render
+  const sections = [
+    { type: "passage1", content: passage1 },
+    { type: "passageQ1", content: passageQ1 },
+    { type: "passage2", content: passage2 },
+    { type: "passageQ2", content: passageQ2 },
+    { type: "paragraph_comprehension", content: paragraph_comprehension },
+    { type: "logical", content: logical },
+    { type: "analogy", content: analogy },
+    { type: "unique", content: unique },
+    { type: "synonym", content: synonym },
+    { type: "antonym", content: antonym },
+    { type: "maths", content: maths },
+    { type: "sentence_completion", content: sentence_completion },
+  ];
 
   return (
     <SafeAreaProvider>
@@ -532,39 +708,14 @@ const RightAway = () => {
 
             {/* main exams list */}
             <FlatList
-              data={quiz}
-              renderItem={({ item, index: questionIndex }) => {
-                // mounting all exam types
-                const passage1 = quiz.find((r) => r.type === "passage1");
-                const passageQ1 = quiz.find((r) => r.type === "passageQ1");
-                const passage2 = quiz.find((r) => r.type === "passage2");
-                const passageQ2 = quiz.find((r) => r.type === "passageQ2");
-                const paragraph_comprehension = quiz.find((r) => r.type === "paragraph_comprehension");
-                const sentence_completion = quiz.find((r) => r.type === "logical");
-                const logical = quiz.find((r) => r.type === "logical");
-                const analogy = quiz.find((r) => r.type === "analogy");
-                const unique = quiz.find((r) => r.type === "unique");
-                const synonym = quiz.find((r) => r.type === "synonym");
-                const antonym = quiz.find((r) => r.type === "antonym");
-                const maths = quiz.find((r) => r.type === "letter_writing");
-
-                const allContents = [
-                  passage1,
-                  passageQ1,
-                  passage2,
-                  passageQ2,
-                  paragraph_comprehension,
-                  sentence_completion,
-                  logical,
-                  unique,
-                  analogy,
-                  synonym,
-                  antonym,
-                  maths,
-                ].filter(Boolean); // remove nulls
-                return allContents.map((content, index) =>
-                  renderers(content, index)
-                );
+              data={sections}
+              keyExtractor={(item) => item.type}
+              renderItem={({ item: section }) => {
+                if (section.content.length === 0) return null;
+                const rendererFunction = renderers[section.type];
+                return rendererFunction
+                  ? rendererFunction(section.content)
+                  : null;
               }}
             />
           </View>
@@ -574,7 +725,7 @@ const RightAway = () => {
   );
 };
 
-export default RightAway;
+export default AptitudeRightAway;
 
 const styles = StyleSheet.create({
   quizBox: {

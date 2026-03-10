@@ -1,5 +1,5 @@
 // screens/ActiveRecallScreen.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -18,60 +18,52 @@ import { useAtom } from "jotai";
 import { selectedSubjectSpecificContent } from "../../atoms";
 
 export default function ActiveRecallScreen() {
-  const [content] = useAtom(selectedSubjectSpecificContent);
   const [quiz, setQuiz] = useState([]);
+  const [content] = useAtom(selectedSubjectSpecificContent);
   const [expandedQuestions, setExpandedQuestions] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // DEBUG: SEE THE REAL PATH
-  console.log("Flashcards URI:", content?.flashcardsUri);
-  console.log(content);
+  // Add useCallback to imports
+  const loadOfflineQuiz = useCallback(async () => {
+    if (!content?.flashcardsUri) {
+      setError("No flashcards found.");
+      setIsLoading(false);
+      return;
+    }
 
-  useEffect(() => {
-    const loadOfflineQuiz = async () => {
-      if (!content?.flashcardsUri) {
-        setError("No flashcards found. Please download content first.");
+    try {
+      const fileInfo = await FileSystem.getInfoAsync(content.flashcardsUri);
+      if (!fileInfo.exists) {
+        setError("File missing. Please re-download.");
         setIsLoading(false);
         return;
       }
 
+      const fileContent = await FileSystem.readAsStringAsync(
+        content.flashcardsUri,
+      );
+
+      // SAFE PARSING
+      let data;
       try {
-        // FIXED: DO NOT ADD ".json" AGAIN — IT'S ALREADY THERE!
-        const fileInfo = await FileSystem.getInfoAsync(content.flashcardsUri);
-        if (!fileInfo.exists) {
-          console.log("File does NOT exist at path:");
-          setError("Flashcards file missing. Please re-download the topic.");
-          setIsLoading(false);
-          return;
-        }
-        else if (fileInfo.exists){
-          console.log("dkalkdfalkfjlajf;lajf;lajlasjflasosoasljsaf;oajfiwfoaf;osajflkvnhfowajf;lasnf;l")
-        }
-        const fileContent = await FileSystem.readAsStringAsync(
-          content.flashcardsUri
-        );
-        const data = JSON.parse(fileContent);
-
-        // Support both formats: { questions: [...] } or direct array
-        const questions = Array.isArray(data)
-          ? data
-          : data.questions || data.items || [];
-
-        if (questions.length === 0) {
-          setError("No questions in file. Try re-downloading.");
-        } else {
-          setQuiz(questions);
-          console.log(`Loaded ${questions.length} flashcards!`);
-        }
+        data = JSON.parse(fileContent);
+      } catch (e) {
+        setError("Data corrupted. Please re-download.");
         setIsLoading(false);
-      } catch (err) {
-        console.log("Read error:", err);
-        setError("Failed to load flashcards. Try re-downloading content.");
-        setIsLoading(false);
+        return;
       }
-    };
 
+      const questions = Array.isArray(data) ? data : data.questions || [];
+      setQuiz(questions);
+      setIsLoading(false);
+    } catch (err) {
+      setError("Failed to load.");
+      setIsLoading(false);
+    }
+  }, [content?.flashcardsUri]);
+
+  useEffect(() => {
     loadOfflineQuiz();
   }, [content?.flashcardsUri]);
 

@@ -11,7 +11,9 @@ const SocialScience = [
 const NaturalScience = [
   { name: "Biology",  topic: topics.Biology },
   { name: "Chemistry",  topic: topics.Chemistry },
-  { name: "Physics",  topic: topics.Physics },
+  { name: "Physcis",  topic: topics.Physics },
+
+
 ];
 
 const Language = [

@@ -1,7 +1,6 @@
 import React from "react";
 import {
   FlatList,
-  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -9,10 +8,11 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { FontAwesome5 } from "@expo/vector-icons";
-import * as Animatable from "react-native-animatable";
-import { useSetAtom } from "jotai";
 import { selectedSubject } from "../../src/atoms.jsx";
 import { router } from "expo-router";
+
+import { themeAtom } from "../atoms.jsx";
+import { useAtom, useSetAtom } from "jotai";
 
 const subjectIcons = {
   Biology: { name: "dna", color: "#43a047", gradient: ["#e8f5e9", "#c8e6c9"] },
@@ -24,7 +24,7 @@ const subjectIcons = {
   Physics: { name: "atom", color: "#f57c00", gradient: ["#fff3e0", "#ffe0b2"] },
   Mathematics: {
     name: "square-root-alt",
-    color: "#8e24aa",
+    color: "#8e24aa", 
     gradient: ["#f3e5f5", "#e1bee7"],
   },
   Geography: {
@@ -39,9 +39,10 @@ const subjectIcons = {
     gradient: ["#efebe9", "#d7ccc8"],
   },
 };
-
 const RenderSubjects = ({ data }) => {
   const setSubject = useSetAtom(selectedSubject);
+  const [theme, setTheme] = useAtom(themeAtom);
+
 
   return (
     <FlatList
@@ -66,14 +67,20 @@ const RenderSubjects = ({ data }) => {
               }}
             >
               <LinearGradient
-                colors={icon.gradient}
+                colors = {theme === "dark" ? ["#1E243B", "#1E243B"] : icon.gradient }
                 style={styles.card}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
               >
-                <FontAwesome5 name={icon.name} size={40} color={icon.color} />
-                <Text style={styles.subjectText}>{item.name}</Text>
+                <View style={[styles.iconContainer, {backgroundColor: theme==="light"?  "" : "#0F172A"}]}>         
+                <FontAwesome5 name={icon.name} size={40} color={theme === "light" ?  icon.color : "#00C2FF"} />
+                </View>
+
+                <Text style={[ styles.subjectText, { color: theme === "light" ? "#333" : "white" } ]}>
+                   { item.name }
+                </Text>
               </LinearGradient>
+
             </TouchableOpacity>
           </>
         );
@@ -95,16 +102,41 @@ const styles = StyleSheet.create({
     marginHorizontal: 8,
     marginVertical: 10,
     shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 6,
-    elevation: 6,
+    shadowOpacity: 0.11,
+    shadowOffset: { width: 0, height: 10 },
+    shadowRadius: 20,
+    elevation: 20,
   },
   subjectText: {
     fontFamily: "Poppins-Bold",
     fontSize: 16,
     marginTop: 8,
-    color: "#333",
     textAlign: "center",
   },
+   iconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+  },
 });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -60,8 +60,9 @@ const TabsLayout = () => {
             ),
           }}
         />
-        {/* quiz tabs */}
-        <Tabs.Screen
+
+        {/* quiz tabs  */}
+       <Tabs.Screen
           name="exam"
           options={{
             tabBarLabel: "Exams",
@@ -77,6 +78,7 @@ const TabsLayout = () => {
             ),
           }}
         />
+
         {/* tool kit */}
         <Tabs.Screen
           name="toolKit"

@@ -13,7 +13,7 @@ import { router } from "expo-router";
 import { useAtom } from "jotai";
 import { selectedSubject, selectedSubjectSpecificContent } from "../../atoms";
 
-const allStudyTools = () => {
+const AllStudyTools = () => {
   // ← Hooks called FIRST, unconditionally
   const [selectedSubjectValue] = useAtom(selectedSubject);
   const [selectedContent] = useAtom(selectedSubjectSpecificContent);
@@ -94,7 +94,7 @@ const allStudyTools = () => {
   );
 };
 
-export default allStudyTools;
+export default AllStudyTools;
 
 const styles = StyleSheet.create({
   container: { flex: 1 },

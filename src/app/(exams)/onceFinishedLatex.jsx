@@ -5,6 +5,7 @@ import {
   FlatList,
   Platform,
   TouchableOpacity,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -14,153 +15,383 @@ import { useAtom } from "jotai";
 import Modal from "react-native-modal";
 import Svg, { Circle } from "react-native-svg";
 
-import { selectedExamsSubject } from "../../atoms";
-import question from "../../constants/question";
-import { useState, useEffect } from "react";
-import { Stack, router } from "expo-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { selectedExamsSubject, selectedSpecificTime } from "../../atoms";
+import { selectedExamSpecifc } from "../../atoms";
 
+import { useState, useEffect, memo, useCallback, useMemo } from "react";
+import { router, Stack } from "expo-router";
+import { supabase } from "../../lib/supabase";
+import * as FileSystem from "expo-file-system";
+
+import LoadingScreen from "../../services/LoadingScreen.jsx";
+import ErrorScreen from "../../services/ErrorScreen.jsx";
+import {generateGeminiResponse} from "../../API/SupabaseGeminiConfig.js"
+import MathRenderer from "../../services/MathRenderer.jsx";
+import { selectedSubjectSpecificContent } from "../../atoms";
+
+// ====================== MEMOIZED QUESTION ITEM ======================
+const QuestionItem = memo(
+  ({
+    item,
+    index,
+    selectedOptions,
+    answersCorrect,
+    expandedQuestions,
+    result, // true = review mode
+    onOptionPress,
+    onToggleExpand,
+    getOptionColor,
+  }) => {
+    return (
+      <View style={styles.quizBox}>
+        <View style={styles.question}>
+          <Text style={{ fontFamily: "Poppins-Medium" }}>
+            {index + 1}. <MathRenderer latexContent={item.question} />
+          </Text>
+        </View>
+        {item.options.map((option, optionIndex) => (
+          <View
+            key={optionIndex}
+            style={[
+              styles.option,
+              { backgroundColor: getOptionColor(item.id, optionIndex, item) },
+            ]}
+          >
+            <TouchableOpacity
+              style={{
+                paddingHorizontal: 12,
+                flexDirection: "row",
+                alignItems: "center",
+              }}
+              onPress={() =>
+                onOptionPress(item.id, optionIndex, item.correctAnswer)
+              }
+              disabled={result} // ← no more changes after finish
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name={
+                  selectedOptions[item.id] === optionIndex
+                    ? "radio-button-on"
+                    : "radio-button-off"
+                }
+                size={24}
+                color="#1E88E5"
+              />
+              <Text style={{ fontFamily: "Poppins-Medium", marginLeft: 8 }}>
+                {option}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ))}
+
+        {/* Explanation - only in review mode */}
+        {result && selectedOptions[item.id] !== undefined && (
+          <>
+            <View
+              style={{
+                flexDirection: "row",
+                marginTop: 12,
+                alignItems: "center",
+              }}
+            >
+              <TouchableOpacity onPress={() => onToggleExpand(item.id)}>
+                <Text style={{ fontFamily: "Poppins-Black" }}>Explanation</Text>
+              </TouchableOpacity>
+              <Ionicons
+                name={
+                  expandedQuestions[item.id] ? "chevron-up" : "chevron-down"
+                }
+                size={20}
+                color="#333"
+              />
+            </View>
+            {expandedQuestions[item.id] && (
+              <Text style={{ fontFamily: "Poppins-Light", marginTop: 8 }}>
+                {item.explanation}
+              </Text>
+            )}
+          </>
+        )}
+      </View>
+    );
+  },
+);
+
+// ====================== MAIN COMPONENT ======================
 const OnceFinishedLatex = () => {
+  const queryClient = useQueryClient();
   const [selectedExam] = useAtom(selectedExamsSubject);
+  const [selectedSpecifc] = useAtom(selectedExamSpecifc);
+  const [selectedTime] = useAtom(selectedSpecificTime);
 
-  const [questionNumber, setQuestionNumber] = useState(null);
+  const tableName = selectedSpecifc;
+  const totalTime = 10; // for testing
+
+  // ────── All state ──────
   const [selectedOptions, setSelectedOptions] = useState({});
   const [answersCorrect, setAnswersCorrect] = useState({});
-  const [checked, setChecked] = useState(false);
   const [expandedQuestions, setExpandedQuestions] = useState({});
-  const [timeLeft, setTimeLeft] = useState(100); // 60 seconds
+  const [missedQuestions, setMissedQuestions] = useState({});
+  const [timeLeft, setTimeLeft] = useState(totalTime);
   const [score, setScore] = useState(0);
-  const [showTime, setShowTime] = useState(false);
-  const [visible, setVisisble] = useState(false);
-  const [finish, setFinish] = useState(false);
-  const [result, setResult] = useState(false);
+  const [visible, setVisible] = useState(false);
+  const [result, setResult] = useState(false); // true = review mode
 
-  const circleCheck = (questionIndex) => {
-    setChecked((prev) => ({
-      ...prev,
-      [questionIndex]: !prev[questionIndex], // toggle only this question
-    }));
-  };
-  // explanation toggle
-  const toggleExpand = (questionIndex) => {
+  // AI states
+  const [AiVisible, setAiVisible] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiText, setAiText] = useState("");
+
+ // downloaded file path states
+  const [content] = useAtom(selectedSubjectSpecificContent);
+  const [isContentLoading, setIsContentLoading] = useState(true)
+  const [quiz, setQuiz] = useState([]);
+  const [error, setError] = useState(null);
+
+    const loadOfflineQuiz = async () => {
+      if (!content) {
+        setError("No exams found. Please download content first.");
+        setIsContentLoading(false);
+        return;
+      }
+  
+      try {
+        // FIXED: DO NOT ADD ".json" AGAIN — IT'S ALREADY THERE!
+        const fileInfo = await FileSystem.getInfoAsync(content);
+        if (!fileInfo.exists) {
+          console.log("File does NOT exist at path:");
+          setError("Exam file missing. Please re-download the topic.");
+          setIsContentLoading(false);
+          return;
+        }
+
+        setIsContentLoading(true);
+        const fileContent = await FileSystem.readAsStringAsync(
+          content
+        );
+        const data = JSON.parse(fileContent);
+        
+        // Support both formats: { questions: [...] } or direct array
+        const questions = Array.isArray(data)
+          ? data
+          : data.questions || data.items || [];
+
+        if (questions.length === 0) {
+          setError("No questions in file. Try re-downloading.");
+        } else {
+          setQuiz(questions);
+        }
+        setIsContentLoading(false);
+      } catch (err) {
+        console.log("Read error:", err);
+        setError("Failed to load exam. Try re-downloading content.");
+        setIsContentLoading(false);
+      }
+    };
+  
+    useEffect(() => {
+      loadOfflineQuiz();
+    }, [content]);
+
+
+  // ────── Stable handlers ──────
+  const handleOptionPress = useCallback(
+    (questionID, optionIndex, correctAnswer) => {
+      setSelectedOptions((prev) => ({ ...prev, [questionID]: optionIndex }));
+
+      const isCorrect = correctAnswer === optionIndex;
+
+      if (isCorrect) setScore((prev) => prev + 1);
+
+      if (!isCorrect) {
+        setMissedQuestions((prev) => ({ ...prev, [questionID]: optionIndex }));
+      }
+
+      setAnswersCorrect((prev) => ({ ...prev, [questionID]: isCorrect }));
+    },
+    [],
+  );
+
+  const toggleExpand = useCallback((questionID) => {
     setExpandedQuestions((prev) => ({
       ...prev,
-      [questionIndex]: !prev[questionIndex], // toggle only this question
+      [questionID]: !prev[questionID],
     }));
-  };
-
-  const handleOptionPress = (questionIndex, optionIndex) => {
-    setSelectedOptions((prev) => ({
-      ...prev,
-      [questionIndex]: optionIndex,
-    }));
-
-    const isAnswerCorrect = question[questionIndex].correctAnswer === optionIndex;
-    {
-      isAnswerCorrect && setScore((prev) => prev + 1);
-    }
-    setAnswersCorrect((prev) => ({
-      ...prev,
-      [questionIndex]: isAnswerCorrect,
-    }));
-  };
-
-  // preventing accidental touch of back button
-  useEffect(() => {
-    const backAction = () => {
-      Alert.alert("Hold on!", "Are you sure you want to go back?", [
-        {
-          text: "Cancel",
-          onPress: () => null,
-          style: "cancel",
-        },
-        { text: "YES", onPress: () => router.back() }, // or navigation.goBack()
-      ]);
-      return true; // prevent default behavior
-    };
-
-    const backHandler = BackHandler.addEventListener(
-      "hardwareBackPress",
-      backAction
-    );
-
-    return () => backHandler.remove();
   }, []);
 
-  // count down time
+  const getOptionColor = useCallback(
+    (questionID, optionIndex, item) => {
+      let bgColor = "white";
+
+      if (selectedOptions[questionID] === optionIndex) {
+        bgColor = answersCorrect[questionID] ? "#4CAF50" : "#EF9A9A";
+      }
+
+      if (
+        selectedOptions[questionID] !== undefined &&
+        optionIndex === item.correctAnswer &&
+        selectedOptions[questionID] !== item.correctAnswer
+      ) {
+        bgColor = "#4CAF50";
+      }
+
+      return bgColor;
+    },
+    [selectedOptions, answersCorrect],
+  );
+
+  // ────── Final score calculation (only once when exam ends) ──────
+  const finalScore = useMemo(() => {
+    if (!quiz || !Array.isArray(quiz)) return 0;
+    return quiz.reduce((acc, q) => {
+      return acc + (selectedOptions[q.id] === q.correctAnswer ? 1 : 0);
+    }, 0);
+  }, [quiz, selectedOptions]);
+
+  // ────── Timer ──────
   useEffect(() => {
-    if (timeLeft === 0) {
-      setFinish(true);
-      setVisisble(true);
+    setTimeLeft(totalTime);
+
+    if (totalTime <= 0) {
+      setVisible(true);
+      setResult(true);
+      setScore(finalScore); // ← calculate once
       return;
     }
 
     const interval = setInterval(() => {
-      setTimeLeft((prev) => prev - 1);
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          setVisible(true);
+          setResult(true);
+          setScore(finalScore); // ← calculate once
+          return 0;
+        }
+        return prev - 1;
+      });
     }, 1000);
 
-    return () => clearInterval(interval); // cleanup
-  }, [timeLeft]);
+    return () => clearInterval(interval);
+  }, [totalTime, finalScore]);
 
-  const formatTime = (secs) => {
-    const hours = Math.floor(secs / 3600);
-    const minutes = Math.floor((secs % 3600) / 60);
-    const seconds = secs % 60;
+  // ────── Back button ──────
+  useEffect(() => {
+    const backAction = () => {
+      Alert.alert("Hold on!", "Are you sure you want to go back?", [
+        { text: "Cancel", style: "cancel" },
+        { text: "YES", onPress: () => router.back() },
+      ]);
+      return true;
+    };
+    const backHandler = BackHandler.addEventListener(
+      "hardwareBackPress",
+      backAction,
+    );
+    return () => backHandler.remove();
+  }, []);
 
-    return `${hours}:${minutes.toString().padStart(2, "0")}:${seconds
-      .toString()
-      .padStart(2, "0")}`;
-  };
-
-  // score variables
   const total = selectedExam.exams[0].amount;
-  const size = 150; // circle diameter
+  const size = 150;
   const strokeWidth = 12;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
-
-  const progress = score / total; // fraction of total score
+  const progress = finalScore / total;
   const strokeDashoffset = circumference * (1 - progress);
 
-  // getting background color for options
-  const getOptionColor = (questionIndex, optionIndex, item) => {
-    // default white
-    let bgColor = "white";
+  // ────── Stable renderItem ──────
+  const renderQuestion = useCallback(
+    ({ item, index }) => (
+      <QuestionItem
+        item={item}
+        index={index}
+        selectedOptions={selectedOptions}
+        answersCorrect={answersCorrect}
+        expandedQuestions={expandedQuestions}
+        result={result}
+        onOptionPress={handleOptionPress}
+        onToggleExpand={toggleExpand}
+        getOptionColor={getOptionColor}
+      />
+    ),
+    [
+      selectedOptions,
+      answersCorrect,
+      expandedQuestions,
+      result,
+      handleOptionPress,
+      toggleExpand,
+      getOptionColor,
+    ],
+  );
 
-    // If user selected this option
-    if (selectedOptions[questionIndex] === optionIndex) {
-      if (answersCorrect[questionIndex]) {
-        bgColor = "#4CAF50"; // ✅ correct selection
-      } else {
-        bgColor = "#EF9A9A"; // ❌ wrong selection
+  // checking loading and error state
+  if (isContentLoading) return <LoadingScreen />;
+  if (error) return <ErrorScreen errorMessage={error} onRetry={loadOfflineQuiz} />;
+  
+
+  // ────── AI Review ──────
+  const handleReviewMistakes = async () => {
+    setAiLoading(true);
+    setAiVisible(true);
+    setAiText("");
+
+    try {
+      const details = quiz
+        .filter((q) => missedQuestions[q.id] !== undefined)
+        .map((q) => {
+          const parsed =
+            typeof q.options === "string" ? JSON.parse(q.options) : q.options;
+          return {
+            question: q.question,
+            userPicked: parsed[missedQuestions[q.id]],
+            correctAnswer: parsed[q.correctAnswer],
+            explanation: q.explanation,
+          };
+        });
+
+      if (details.length === 0) {
+        setAiText("Great job! You didn't miss any questions.");
+        setAiLoading(false);
+        return;
       }
-    }
 
-    // Always show the correct one green if they missed it
-    if (
-      selectedOptions[questionIndex] !==undefined &&
-      optionIndex === item.correctAnswer &&
-      selectedOptions[questionIndex] !== item.correctAnswer
-    ) {
-      bgColor = "#4CAF50";
-    }
+      const prompt =
+        `You are a helpful tutor. Explain why the user's choice was wrong and give a clear explanation.\n\n` +
+        details
+          .map(
+            (d) =>
+              `Q: ${d.question}\nUser: ${d.userPicked}\nCorrect: ${d.correctAnswer}\nBasic: ${d.explanation}\n\n`,
+          )
+          .join("");
 
-    return bgColor;
+      const finalResult = await generateGeminiResponse(finalPrompt);
+      setAiText(finalResult.response.text());
+    } catch (e) {
+      setAiText("Sorry, I couldn't generate the review.");
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const formatTime = (secs) => {
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    const s = secs % 60;
+    return `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
   };
 
   return (
     <SafeAreaProvider>
       <SafeAreaView style={{ flex: 1, backgroundColor: "white" }}>
         <LinearGradient colors={["#4c669f", "#3b5998", "#192f6a"]}>
-          {/* show score */}
-          <Modal
-            isVisible={visible}
-            onBackdropPress={() => {}}
-            onBackButtonPress={() => {}}
-          >
+          {/* Score Modal */}
+          <Modal isVisible={visible} onBackdropPress={() => setVisible(false)}>
             <View style={styles.modalContent}>
               <View style={styles.container}>
                 <Svg width={size} height={size}>
-                  {/* Background Circle */}
                   <Circle
                     stroke="#eee"
                     fill="none"
@@ -169,7 +400,6 @@ const OnceFinishedLatex = () => {
                     r={radius}
                     strokeWidth={strokeWidth}
                   />
-                  {/* Progress Circle */}
                   <Circle
                     stroke="#4CAF50"
                     fill="none"
@@ -186,9 +416,8 @@ const OnceFinishedLatex = () => {
                   />
                 </Svg>
 
-                {/* Score Text */}
                 <View style={styles.textContainer}>
-                  <Text style={styles.scoreText}>{score}</Text>
+                  <Text style={styles.scoreText}>{finalScore}</Text>
                   <Text style={styles.totalText}>/ {total}</Text>
                 </View>
               </View>
@@ -199,233 +428,103 @@ const OnceFinishedLatex = () => {
                   justifyContent: "space-around",
                   marginTop: 20,
                   width: "100%",
+                  flexWrap: "wrap",
+                  gap: 10,
                 }}
               >
-                {/* check button */}
-
                 <TouchableOpacity
                   style={[styles.optionBtn, { backgroundColor: "gray" }]}
-                  onPress={() => {
-                    setResult(true);
-                    setVisisble(false);
-                  }}
+                  onPress={() => setVisible(false)}
                 >
-                  <Text style={styles.optionText}>Check</Text>
+                  <Text style={styles.optionText}>Cancel</Text>
                 </TouchableOpacity>
 
-                {/* AI review */}
-                <TouchableOpacity
-                  style={[styles.optionBtn, { backgroundColor: "#2196F3" }]}
-                >
-                  <Text style={styles.optionText}>AI review</Text>
-                </TouchableOpacity>
-
-                {/* done button */}
                 <TouchableOpacity
                   style={[styles.optionBtn, { backgroundColor: "#4CAF50" }]}
-                  onPress={() => {
-                    setVisisble(false);
-                    router.back();
-                  }}
+                  onPress={() => router.back()}
                 >
                   <Text style={styles.optionText}>Done</Text>
+                </TouchableOpacity>
+
+                {Object.keys(missedQuestions).length > 0 && (
+                  <TouchableOpacity
+                    style={[styles.optionBtn, { backgroundColor: "#2196F3" }]}
+                    onPress={() => {
+                      setVisible(false);
+                      handleReviewMistakes();
+                    }}
+                  >
+                    <Text style={styles.optionText}>AI Review</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          </Modal>
+
+          {/* AI Review Modal */}
+          <Modal
+            isVisible={AiVisible}
+            onBackdropPress={() => setAiVisible(false)}
+            backdropOpacity={0.7}
+          >
+            <View style={styles.aimodalContainer}>
+              <View style={styles.aimodalContent}>
+                <Text style={styles.aititle}>AI Tutor Review</Text>
+                {aiLoading ? (
+                  <ActivityIndicator size="large" color="#4CAF50" />
+                ) : (
+                  <Text style={styles.aiText}>{aiText}</Text>
+                )}
+                <TouchableOpacity
+                  style={[
+                    styles.optionBtn,
+                    { backgroundColor: "#222", marginTop: 20 },
+                  ]}
+                  onPress={() => setAiVisible(false)}
+                >
+                  <Text style={styles.optionText}>Close</Text>
                 </TouchableOpacity>
               </View>
             </View>
           </Modal>
 
           <View>
-            {/* header contents */}
-            <View
-              style={{
-                flex: 1,
-                alignItems: "center",
-                justifyContent: "center",
+            <Stack.Screen
+              options={{
+                headerStyle: { backgroundColor: "#3b5998" },
+                headerTintColor: "#fff",
+                headerLeft: () => (
+                  <Text
+                    style={{
+                      fontSize: 16,
+                      fontFamily: "Poppins-SemiBold",
+                      color: "white",
+                      marginLeft: 5,
+                    }}
+                  >
+                    {formatTime(timeLeft)}
+                  </Text>
+                ),
+                headerRight: () => (
+                  <TouchableOpacity onPress={() => setVisible(true)}>
+                    <Ionicons name="document-text" size={24} color="white" />
+                  </TouchableOpacity>
+                ),
               }}
-            >
-              <Stack.Screen
-                options={{
-                  headerStyle: { backgroundColor: "#3b5998" },
-                  headerTintColor: "#fff",
-                  // 👇 custom header title
-                  headerLeft: () => (
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <Text
-                        style={{
-                          fontSize: 16,
-                          fontFamily: "Poppins-SemiBold",
-                          color: "white",
-                          marginTop: 2,
-                          marginLeft: 5,
-                        }}
-                      >
-                        {showTime
-                          ? `${selectedExam.name} ${selectedExam.exams[0].year}`
-                          : formatTime(timeLeft)}
-                      </Text>
-                    </View>
-                  ),
+            />
 
-                  headerRight: () => (
-                    <View
-                      style={{
-                        marginRight: 12,
-                        flexDirection: "row",
-                        justifyContent: "center",
-                      }}
-                    >
-                      {!showTime ? (
-                        <TouchableOpacity
-                          style={{ marginRight: 12 }}
-                          activeOpacity={1}
-                          onPress={() => {
-                            setShowTime((prev) => !prev);
-                          }}
-                        >
-                          <Ionicons
-                            name="time-outline"
-                            size={27}
-                            color="white"
-                          />
-                        </TouchableOpacity>
-                      ) : (
-                        <TouchableOpacity
-                          style={{marginRight: 12}}
-                          activeOpacity={1}
-                          onPress={() => {
-                            setShowTime((prev) => !prev);
-                          }}
-                        >
-                          <Ionicons
-                            name="time-outline"
-                            size={27}
-                            color="white"
-                            style={{ opacity: 0.3 }}
-                          />
-                        </TouchableOpacity>
-                      )}
-                      <View>
-                        <TouchableOpacity
-                          onPress={() => {
-                            setVisisble(true);
-                          }}
-                        >
-                          <Ionicons
-                            name="document-text"
-                            size={24}
-                            color="white"
-                          />
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  ),
-                }}
-              />
-            </View>
             <FlatList
-              data={question}
-              renderItem={({ item, index: questionIndex }) => {
-                return (
-                  <View>
-                    <View style={styles.quizBox}>
-                      <View style={styles.question}>
-                        <Text style={{ fontFamily: "Poppins-Medium" }}>
-                          {questionIndex + 1}. {item.question}
-                        </Text>
-                      </View>
-                      {item.options.map((option, optionIndex) => (
-                        <View
-                          key={optionIndex}
-                          style={[
-                            styles.option,
-                            {
-                              backgroundColor: result
-                                ? getOptionColor(questionIndex, optionIndex, item)
-                                : "white",
-                            },
-                          ]}
-                        >
-                          <TouchableOpacity
-                            key ={optionIndex}
-                            style={{ flex: 1 }}
-                            onPress={() => {
-                              handleOptionPress(questionIndex, optionIndex);
-                            }}
-                            activeOpacity={0.7}
-                            disabled={result}
-                          >
-                            <View
-                              style={{
-                                flexDirection: "row",
-                                justifyContent: "space-between",
-                              }}
-                            >
-                              <Text style={{ fontFamily: "Poppins-Medium" }}>
-                                {option}
-                              </Text>
-                              <Ionicons
-                                name={
-                                  selectedOptions[questionIndex] === optionIndex
-                                    ? "radio-button-on"
-                                    : "radio-button-off"
-                                }
-                                size={28}
-                                color={checked ? "#999" : "#1E88E5"}
-                              />
-                            </View>
-                          </TouchableOpacity>
-
-                          {/* check box */}
-                        </View>
-                      ))}
-
-                      {/* explanation toggle */}
-
-                      {selectedOptions[questionIndex] && result && (
-                        <>
-                          <View
-                            style={{
-                              flex: 1,
-                              flexDirection: "row",
-                              marginTop: 7,
-                              alignItems: "center",
-                            }}
-                          >
-                            <TouchableOpacity
-                              onPress={() => toggleExpand(questionIndex)}
-                            >
-                              <Text style={{ fontFamily: "Poppins-Black" }}>
-                                Explanation
-                              </Text>
-                            </TouchableOpacity>
-                            <Ionicons
-                              name={
-                                expandedQuestions[questionIndex]
-                                  ? "chevron-up"
-                                  : "chevron-down"
-                              }
-                              size={20}
-                              color="#333"
-                            />
-                          </View>
-                          {expandedQuestions[questionIndex] && (
-                            <View>
-                              <Text style={{ fontFamily: "Poppins-Light" }}>
-                                {item.explanation}
-                              </Text>
-                            </View>
-                          )}
-                        </>
-                      )}
-                    </View>
-                  </View>
-                );
-              }}
+              data={quiz}
+              keyExtractor={(item) =>
+                item.id?.toString() || Math.random().toString()
+              }
+              renderItem={renderQuestion}
+              windowSize={5}
+              maxToRenderPerBatch={10}
+              initialNumToRender={8}
+              removeClippedSubviews={Platform.OS === "android"}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 100 }}
             />
           </View>
         </LinearGradient>
@@ -436,7 +535,9 @@ const OnceFinishedLatex = () => {
 
 export default OnceFinishedLatex;
 
+// ====================== STYLES ======================
 const styles = StyleSheet.create({
+  // ... (keep all your existing styles exactly the same)
   quizBox: {
     marginVertical: 10,
     marginHorizontal: 10,
@@ -455,6 +556,7 @@ const styles = StyleSheet.create({
       },
     }),
   },
+
   question: {
     backgroundColor: "#fff",
     borderRadius: 15,
@@ -472,6 +574,7 @@ const styles = StyleSheet.create({
       },
     }),
   },
+
   option: {
     backgroundColor: "#fff",
     borderRadius: 15,
@@ -490,13 +593,7 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.6)",
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 20,
-  },
+
   modalContent: {
     backgroundColor: "white",
     padding: 25,
@@ -507,22 +604,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 5,
-  },
-  optionBtn: {
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 10,
-    marginVertical: 8,
-    alignItems: "center",
-  },
-  optionText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  cancelBtn: {
-    marginTop: 15,
-    padding: 10,
   },
   container: {
     width: 150,
@@ -545,4 +626,31 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: "#777",
   },
+  optionBtn: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    marginVertical: 8,
+    alignItems: "center",
+  },
+  optionText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  aimodalContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.7)",
+  },
+  aimodalContent: {
+    width: "90%",
+    backgroundColor: "white",
+    padding: 25,
+    borderRadius: 16,
+    alignItems: "center",
+  },
+  aititle: { fontSize: 22, fontFamily: "Poppins-Bold", marginBottom: 15 },
+  aiText: { fontSize: 16, lineHeight: 24, textAlign: "left" },
 });

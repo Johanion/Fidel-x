@@ -1,4 +1,3 @@
-// screens/exam.jsx
 import React from "react";
 import {
   FlatList,
@@ -22,6 +21,9 @@ import GridBackground from "../../services/GridBackground.jsx";
 import Exam from "../../constants/quizMetaData.js";
 import { themeAtom } from "../../atoms.jsx";
 
+const ExamScreen = () => {
+
+  
 const colors = {
   light: {
     backgroundColor: "white",
@@ -44,7 +46,7 @@ const colors = {
     moon: "#014421",
   },
 };
-const ExamScreen = () => {
+
   // YOUR ICONS + DATA
   const examIcons = {
     Physics: {
@@ -93,7 +95,7 @@ const ExamScreen = () => {
       icon: "brain",
       color: "#239BA7",
       gradient: ["#e0f2ed", "#b2e4e0"],
-      exams: Exam.Aptitude,
+      exams: Exam.Aptitude, 
     },
     Geography: {
       id: "7",
@@ -113,7 +115,7 @@ const ExamScreen = () => {
     },
     SocialMathematics: {
       id: "9",
-      name: "Socail Mathematics",
+      name: "Social Mathematics",
       icon: "calculator",
       color: "#827717",
       gradient: ["#e8f5e9", "#c8e6c9"],

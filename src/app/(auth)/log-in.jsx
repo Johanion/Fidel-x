@@ -16,31 +16,35 @@ import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { useSegments } from "expo-router";
 
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../providers/AuthProvider";
 
 import GridBackground from "../../services/GridBackground";
-import * as Application from 'expo-application';
 
 export default function LogIn() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [logLoading, setLogLoading] = useState(false);
-  const [authorized, setAuthorized] = useState(false);
 
   // Focus states for inputs
   const [focusedInput, setFocusedInput] = useState(null);
 
+  // user current session from provider
   const { session, loading: authLoading } = useAuth();
   const router = useRouter();
+  
+  // checking from where the navigation comes
+  const segments = useSegments();
+  const inResetFlow = segments[0] === "(reset)";
 
   //if user has already login redirect to the main page
   useEffect(() => {
-    if (session ) {
+    if (session && !inResetFlow) {
       router.replace("/(tabs)");
     }
-  }, [session, router]);
+  }, [session, router, inResetFlow]);
 
   // if session is loading showing loading or activity indicator
   if (authLoading) {
@@ -54,65 +58,24 @@ export default function LogIn() {
     );
   }
 
+  // function that handle log-in
   const signInWithEmail = async () => {
     if (!email || !password) {
       Alert.alert("Error", "make sure to insert all fields");
       return;
     }
-
     setLogLoading(true);
-
+    
     try {
       const { data: authData, error: signInError } =
         await supabase.auth.signInWithPassword({
           email,
           password,
         });
-      try {
-        let uniqueId = null;
-        if (Platform.OS ==='android'){
-            uniqueId = Application.getAndroidId()
-            console.log(uniqueId)
-        } else if (Platform.OS ==='ios'){
-            uniqueId = await Application.getIosIdForVendorAsync();
-        }
-        const { data: deviceData, error: deviceError } = await supabase
-          .from("deviceUUID")
-          .select("deviceID")
-          .eq("user_id", authData.user.id)
-          .single(); // fetch single row
-
-        // if (deviceError && deviceError.code !== "PGRST116") throw deviceError; // ignore "no row found"
-        // console.log(deviceError);
-
-        if (!deviceData || !deviceData.deviceID) {
-          // No device yet, assign current device
-          console.log("uniqued iddddddddddddddddddddddd", uniqueId);
-          const { error: upsertError } = await supabase
-            .from("deviceUUID")
-            .upsert({ user_id: authData.user.id, deviceID: uniqueId });
-          if (upsertError) throw upsertError;
-          console.log("upsert errorr", upsertError)
-          setAuthorized(true);
-        } else if (deviceData.deviceID === uniqueId) {
-          // Same device, allow login 
-          setAuthorized(true);
-        } else {
-          // Logged in from another device
-          Alert.alert(
-            "Already logged in",
-            "You are logged in from another device. please contact our Support Center."
-          );
-        }
-      } catch (e) {
-        Alert.alert("Sign-in failed", e.message ?? "Something went wrong.");
-      }
 
       if (signInError) throw signInError;
       if (!authData?.user) throw new Error("No user returned after sign-in.");
-
     } catch (err) {
-      console.error(err);
       Alert.alert("Sign-in failed", err.message ?? "Something went wrong.");
     } finally {
       setLogLoading(false);
@@ -137,7 +100,7 @@ export default function LogIn() {
       secure: true,
     },
   ];
-  console.log("sign innnnnnnnnnnnnnnnnnnnnn");
+
   return (
     <SafeAreaProvider>
       <SafeAreaView style={{ flex: 1 }}>

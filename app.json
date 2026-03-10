@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "Fidel-x",
-    "slug": "Fidel-x",
+    "name": "FidelX",
+    "slug": "fidelX",
     "version": "1.0.0",
-    "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "orientation": "default",
+    "icon": "./assets/icons/adaptive-icon.png",
     "scheme": "fidelx",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -12,12 +12,14 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.fidel.fidelx",
+      "versionCode": 1,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/icons/adaptive-icon.png",
+        "monochromeImage": "./assets/icons/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.anonymous.Fidelx"
     },
     "web": {
       "bundler": "metro",
@@ -29,7 +31,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/icons/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
@@ -47,6 +49,13 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "3bdc6508-0a75-4b03-bf1f-9533a8d01ddd"
+      }
+    },
+    "owner": "zionohannes"
   }
 }

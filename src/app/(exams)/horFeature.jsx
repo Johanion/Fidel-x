@@ -1,32 +1,52 @@
 // (exams)/horFeature.jsx
 import React from "react";
-import { FlatList, StyleSheet, Text, View, Platform } from "react-native";
+import { FlatList, StyleSheet, Text, View, Platform, TouchableOpacity} from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { FontAwesome5 } from "@expo/vector-icons";
-
-const HorFeatureItem = ({ item }) => {
-  return (
-    <View style={styles.cardWrapper}>
-      <LinearGradient
-        colors={["#FFFFFF", "#F8FCFB", "#E8F5F0"]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.card}
-      >
-        {/* Icon Circle */}
-        <View style={styles.iconCircle}>
-          <FontAwesome5 name={item.icon || "book"} size={38} color="#239BA7" />
-        </View>
-
-        {/* Text Content */}
-        <Text style={styles.typeText}>{item.type}</Text>
-        <Text style={styles.nameText}>{item.name}</Text>
-      </LinearGradient>
-    </View>
-  );
-};
+import { selectedExamsSubject } from "../../atoms.jsx";
+import { useRouter } from "expo-router";
+import { useSetAtom } from "jotai";
+import * as FileSystem from "expo-file-system";
 
 const HorFeature = ({ data }) => {
+  const router = useRouter();
+  const setSelectedExam = useSetAtom(selectedExamsSubject);
+  const handleSelection = (item) => {
+    setSelectedExam({
+      name: item.name,
+      exams: item.exams,
+    });
+    router.push("/listOfExams");
+  };
+
+  const HorFeatureItem = ({ item }) => {
+    return (
+      <View style={styles.cardWrapper}>
+        <TouchableOpacity onPress={() => handleSelection(item)} activeOpacity={1}>
+          <LinearGradient
+            colors={["#FFFFFF", "#F8FCFB", "#E8F5F0"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.card}
+          >
+            {/* Icon Circle */}
+            <View style={styles.iconCircle}>
+              <FontAwesome5
+                name={item.icon || "book"}
+                size={38}
+                color="#239BA7"
+              />
+            </View>
+
+            {/* Text Content */}
+            <Text style={styles.typeText}>{item.type}</Text>
+            <Text style={styles.nameText}>{item.name}</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
   return (
     <FlatList
       data={data}

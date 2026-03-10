@@ -23,9 +23,9 @@ import { useAtom, useSetAtom } from "jotai";
 import { themeAtom } from "../../atoms.jsx";
 
 const APP_VERSION = "1.0.0"; // current app version
-const router = useRouter();
 
 export default function ProfileScreen({ navigation }) {
+  const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
   const [profile, setProfile] = useState({
     name: "John Doe",
@@ -114,7 +114,7 @@ export default function ProfileScreen({ navigation }) {
               AsyncStorage.setItem("stream", updatedProfile.stream),
               AsyncStorage.setItem(
                 "status",
-                JSON.stringify(updatedProfile.status)
+                JSON.stringify(updatedProfile.status),
               ),
             ]);
           }
@@ -137,13 +137,13 @@ export default function ProfileScreen({ navigation }) {
         style: "destructive",
         onPress: async () => {
           const { error: LogOutError } = await supabase.auth.signOut();
+          if (LogOutError) {
+            throw Error(LogOutError);
+          }
           router.replace("../log-in");
         },
       },
     ]);
-    if (LogOutError) {
-      throw Errror(LogOutError);
-    }
   }
 
   // handle sign in logic
@@ -161,7 +161,10 @@ export default function ProfileScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <LinearGradient colors={[ colors[theme].pageGradient1, colors[theme].pageGradient2]} style={styles.background}>
+      <LinearGradient
+        colors={[colors[theme].pageGradient1, colors[theme].pageGradient2]}
+        style={styles.background}
+      >
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
@@ -207,10 +210,30 @@ export default function ProfileScreen({ navigation }) {
           </View>
 
           {/* Profile Card */}
-          <View style={[styles.profileCardWrapper, {color: colors[theme].backgroundColor}]}>
-            <View style={[styles.profileCardWrapper, {color: colors[theme].backgroundColor}]}></View>
-            <View style={[styles.profileCard, {color: colors[theme].backgroundColor}]}>
-              <View style={[styles.cardHeader , {color: colors[theme].backgroundColor}]}>
+          <View
+            style={[
+              styles.profileCardWrapper,
+              { color: colors[theme].backgroundColor },
+            ]}
+          >
+            <View
+              style={[
+                styles.profileCardWrapper,
+                { color: colors[theme].backgroundColor },
+              ]}
+            ></View>
+            <View
+              style={[
+                styles.profileCard,
+                { color: colors[theme].backgroundColor },
+              ]}
+            >
+              <View
+                style={[
+                  styles.cardHeader,
+                  { color: colors[theme].backgroundColor },
+                ]}
+              >
                 <Text style={styles.cardTitle}>Student Profile</Text>
                 <TouchableOpacity onPress={() => setIsEditing(!isEditing)}>
                   <Ionicons
@@ -248,7 +271,7 @@ export default function ProfileScreen({ navigation }) {
                     color: "#4CAF50",
                   },
                 ].map((field, index) => (
-                  <View style={styles.fieldRow}>
+                  <View style={styles.fieldRow} key={field.key}>
                     <View
                       style={[
                         styles.iconCircle,
