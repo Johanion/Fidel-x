@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "FidelX",
-    "slug": "fidelX",
+    "slug": "Fidel-x",
     "version": "1.0.0",
     "orientation": "default",
     "icon": "./assets/icons/adaptive-icon.png",
@@ -19,7 +19,7 @@
         "monochromeImage": "./assets/icons/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true,
+      "edgeToEdgeEnabled": true
     },
     "web": {
       "bundler": "metro",

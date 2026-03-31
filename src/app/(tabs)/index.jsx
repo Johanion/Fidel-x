@@ -36,7 +36,7 @@ export default function Index() {
   const [name, setName] = useState("");
   const [theme, setTheme] = useAtom(themeAtom);
   // const [drawerOpen, setDrawerOpen] = useState(false);
-  
+   
   const colors = {
     light: {
       backgroundColor: "#E0F2ED",
@@ -47,13 +47,14 @@ export default function Index() {
       pageGradient1: "#E0F2ED",
       pageGradient2: "#FFFFFF",
       pageGradient3: "#E0F2ED",
-      moon: "#014421",
+      moon: "#014421",    
       accent: "#FFE100", // Shared accent for highlights
       shadow: "", // Default shadow for light mode
       gridOpacity: 0.05, // For grid backgrounds
     },
+
     dark: {
-      backgroundColor: "#0F172A",
+      backgroundColor: "#3F4F44",
       greeting: "#C9D1D9",
       welcome: "#C9D1D9",
       fidelx: "#FFE100",
@@ -110,10 +111,7 @@ export default function Index() {
   const PageHeader = () => (
     <View style={{ flex: 1 }}>
       {theme === "dark" ? (
-        <BlackGridBackground
-          size={40}
-          color={`rgba(165, 180, 252, ${colors[theme].gridOpacity})`}
-        /> // Creative gray-purple tint for grid
+      null
       ) : (
         <GridBackground size={40} />
       )}
@@ -319,10 +317,7 @@ export default function Index() {
                 }}
               ></View>
               {theme === "dark" ? (
-                <BlackGridBackground
-                  size={40}
-                  color={`rgba(165, 180, 252, ${colors[theme].gridOpacity})`}
-                /> // Creative tint
+                  null
               ) : (
                 <GridBackground size={40} />
               )}
@@ -358,10 +353,7 @@ export default function Index() {
                 }}
               ></View>
               {theme === "dark" ? (
-                <BlackGridBackground
-                  size={40}
-                  color={`rgba(165, 180, 252, ${colors[theme].gridOpacity})`}
-                /> // Creative tint
+               null
               ) : (
                 <GridBackground size={40} />
               )}

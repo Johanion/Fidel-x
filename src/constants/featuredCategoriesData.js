@@ -38,6 +38,8 @@ const featuredCategoriesData = [
       id: "telegram",
       image: Telegram
     },
-  ];
+  ];  
 
   export default featuredCategoriesData;
+
+  

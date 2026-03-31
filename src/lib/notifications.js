@@ -16,20 +16,21 @@ export async function registerForPushNotificationsAsync() {
 
   if (Device.isDevice) {
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let initialStatus = existingStatus;
     let finalStatus = existingStatus;
-    if (existingStatus !== 'granted') {
+
+    if (existingStatus == 'undetermined') {
       const { status } = await Notifications.requestPermissionsAsync(); 
       finalStatus = status;
     }
-    if (finalStatus !== 'granted') {
-      alert('Failed to get push token for push notification!');
-      return;
-    }
-    token = (
+    if (finalStatus == 'granted' && initialStatus !==granted) {
+      token = (
       await Notifications.getExpoPushTokenAsync({
         projectId: Constants.expoConfig?.extra?.eas.projectId,
       })
     ).data;
+    }
+    
   } else {
     // alert('Must use physical device for Push Notifications');
   }
